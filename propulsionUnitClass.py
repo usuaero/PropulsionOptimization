@@ -73,6 +73,7 @@ class PropulsionUnit:
     #Computes thrust produced at a given cruise speed and throttle setting
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
         self.prop.vInf = cruiseSpeed
+        print("Speed:",cruiseSpeed,"Throttle:",throttle)
         
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
         #Uses a secant method
@@ -80,7 +81,6 @@ class PropulsionUnit:
         approxError = 1 + errorBound
         w0 = 300 #An initial guess of the prop's angular velocity
         self.prop.angVel = w0
-        self.prop.CalcProperties()
         self.prop.CalcTorqueCoef()
         f0 = self.CalcTorque(throttle, toRPM(w0)) - self.prop.Cl*self.airDensity*(w0/(2*np.pi))**2*self.prop.diameter**5
         w1 = w0 * 1.1
@@ -88,14 +88,14 @@ class PropulsionUnit:
         while approxError >= errorBound:
             
             self.prop.angVel = w1
-            self.prop.CalcProperties()
             self.prop.CalcTorqueCoef()
             motorTorque = self.CalcTorque(throttle, toRPM(w1))
             propTorque = self.prop.Cl*self.airDensity*(w1/(2*np.pi))**2*self.prop.diameter**5
             f1 = motorTorque - propTorque
             
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
-            
+            print("Tm:",motorTorque)
+            print("w:",w2)            
             approxError = abs((w2 - w1)/w2)
             
             w0 = w1
@@ -103,7 +103,6 @@ class PropulsionUnit:
             w1 = w2
         
         self.prop.angVel = w2
-        self.prop.CalcProperties()
         self.prop.CalcThrustCoef()
             
         return self.prop.Ct*self.airDensity*(w0/(2*np.pi))**2*self.prop.diameter**4
@@ -156,3 +155,4 @@ class PropulsionUnit:
         plt.ylabel("Thrust [N]")
         plt.xlabel("Throttle Setting")
         plt.legend(list(vel))
+        plt.show()
