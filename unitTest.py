@@ -1,13 +1,16 @@
 import propulsionUnitClass as unit
 
-prop = "ance_8.5x6"
+prop = "kyosho_10x6"
 motor = "Kontronik Pyro 700-34"
 battery = "Turnigy 5000mAh 40C"
 numCells = 3
 esc = "Kontronic SUN 3000"
 altitude = 2000
 
-test = unit.PropulsionUnit(prop, motor, battery, numCells, esc, altitude)
+test = unit.PropulsionUnit(prop, motor, battery, numCells, esc, altitude, True)
 print("Initialization complete. Plotting thrust curves.")
-test.PlotThrustCurves(100)
+maxAirspeed = 100
+numVelocities = 11
+numThrottles = 100
+test.PlotThrustCurves(maxAirspeed, numVelocities, numThrottles)
 

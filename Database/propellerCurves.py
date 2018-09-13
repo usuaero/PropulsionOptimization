@@ -9,12 +9,17 @@ from os import path
 import polyFit as fit
 import re
 
+#########################################
+#Set this bool to determine if the SQL database will be updated or not
+updateDatabase = False
+#########################################
+
 propDatabasePath = os.getcwd() + "/Props"
 
 #Specify which group of props to analyze
 wholeDatabase = os.listdir(path.join(propDatabasePath))
 apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
-seligTestProps = ["ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
+seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
 problemProps = ["da4022_9x6.75"]
 
 thrustFitOrder = 3 #Order of polynomial fit to thrust vs advance ratio
@@ -29,32 +34,32 @@ powerZeroCoefs = [4,5,6]
 showPlots = False 
 propCount = 0
 
+if updateDatabase:
+    db = sql.connect("components.db")
+    dbcur = db.cursor()
+    dbcur.execute("drop table Props") #The database is refreshed every time
+    thrustCoefs = ["thrust"+str(x//(fitOfThrustFitOrder+1))+str(x%(fitOfThrustFitOrder+1))+" real," for x in range(((thrustFitOrder+1)*(fitOfThrustFitOrder+1)))]
+    powerCoefs = ["power"+str(x//(fitOfPowerFitOrder+1))+str(x%(fitOfPowerFitOrder+1))+" real," for x in range(((powerFitOrder+1)*(fitOfPowerFitOrder+1)))]
+    thrust = " ".join(thrustCoefs)
+    power = " ".join(powerCoefs)[:-1]
+    print(thrust)
+    print(power)
+    createTableCommand = """create table Props (id integer primary key, Name varchar, Diameter real, Pitch real, 
+                            thrustFitOrder int default {tfo},
+                            fitOfThrustFitOrder int default {fotfo},
+                            powerFitOrder int default {pfo},
+                            fitOfPowerFitOrder int default {fopfo},
+                            """+thrust+" "+power+")"
+    createTableCommand = createTableCommand.format(tfo = str(thrustFitOrder), fotfo = str(fitOfThrustFitOrder), pfo = str(powerFitOrder), fopfo = str(fitOfPowerFitOrder))
+    print(createTableCommand)
+    dbcur.execute(createTableCommand)
 
-db = sql.connect("components.db")
-dbcur = db.cursor()
-dbcur.execute("drop table Props") #The database is refreshed every time
-thrustCoefs = ["thrust"+str(x//(fitOfThrustFitOrder+1))+str(x%(fitOfThrustFitOrder+1))+" real," for x in range(((thrustFitOrder+1)*(fitOfThrustFitOrder+1)))]
-powerCoefs = ["power"+str(x//(fitOfPowerFitOrder+1))+str(x%(fitOfPowerFitOrder+1))+" real," for x in range(((powerFitOrder+1)*(fitOfPowerFitOrder+1)))]
-thrust = " ".join(thrustCoefs)
-power = " ".join(powerCoefs)[:-1]
-print(thrust)
-print(power)
-createTableCommand = """create table Props (id integer primary key, Name varchar, Diameter real, Pitch real, 
-                        thrustFitOrder int default {tfo},
-                        fitOfThrustFitOrder int default {fotfo},
-                        powerFitOrder int default {pfo},
-                        fitOfPowerFitOrder int default {fopfo},
-                        """+thrust+" "+power+")"
-createTableCommand = createTableCommand.format(tfo = str(thrustFitOrder), fotfo = str(fitOfThrustFitOrder), pfo = str(powerFitOrder), fopfo = str(fitOfPowerFitOrder))
-print(createTableCommand)
-dbcur.execute(createTableCommand)
+    dbcur.execute("select * from props")
+    for columnName in dbcur.description:
+        print(columnName)
+    print(dbcur.fetchall())
 
-dbcur.execute("select * from props")
-for columnName in dbcur.description:
-    print(columnName)
-print(dbcur.fetchall())
-
-for propFolder in wholeDatabase:
+for propFolder in seligTestProps:
     
     if ".py" in str(propFolder):
         continue

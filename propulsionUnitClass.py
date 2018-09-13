@@ -4,6 +4,7 @@ import sqlite3 as sql
 import supportClasses as s
 from skaero.atmosphere import coesa
 
+# Note that UIUC gives dimensionless coefficients assuming that angular velocity is given in revs/sec.
 
 #Converts rads per second to rpms
 def toRPM(rads):
@@ -13,7 +14,7 @@ def toRPM(rads):
 class PropulsionUnit:
 
     #Initialize the class from components in the component database 
-    def __init__(self, prop, motor, battery, numCells, esc, altitude):
+    def __init__(self, prop, motor, battery, numCells, esc, altitude, showData):
         
         #Open database and read records from database
         db = sql.connect("Database/components.db")
@@ -25,7 +26,8 @@ class PropulsionUnit:
         dbcur.execute(command)
         propRecord = dbcur.fetchall()
         propInfo = np.asarray(propRecord[0])
-        print(propInfo)
+        if showData:
+            print("----Propeller Data----\n",propInfo)
         self.prop = s.Propeller(propInfo[1],propInfo[2],propInfo[3],propInfo[4:])
 
 
@@ -35,7 +37,8 @@ class PropulsionUnit:
         dbcur.execute(command)
         motorRecord = dbcur.fetchall()
         motorInfo = np.asarray(motorRecord[0])
-        print(motorInfo)
+        if showData:
+            print("----Motor Data----\n",motorInfo)
         self.motor = s.Motor(motorInfo[1],motorInfo[2],motorInfo[3],motorInfo[5],motorInfo[4],motorInfo[6])
 
         #Fetch battery data
@@ -44,7 +47,8 @@ class PropulsionUnit:
         dbcur.execute(command)
         batteryRecord = dbcur.fetchall()
         batteryInfo = np.asarray(batteryRecord[0])
-        print(batteryInfo)
+        if showData:
+            print("----Battery Data----\n",batteryInfo)
         self.batt = s.Battery(batteryInfo[1], numCells, batteryInfo[3], batteryInfo[6], batteryInfo[5], batteryInfo[4])
 
         #Fetch ESC data
@@ -53,7 +57,8 @@ class PropulsionUnit:
         dbcur.execute(command)
         escRecord = dbcur.fetchall()
         escInfo = np.asarray(escRecord[0])
-        print(escInfo)
+        if showData:
+            print("----ESC Data----\n",escInfo)
         self.esc = s.ESC(escInfo[1], escInfo[5], escInfo[2], escInfo[4])
         
         #Initialize exterior parameters to be set later
@@ -74,6 +79,21 @@ class PropulsionUnit:
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
         self.prop.vInf = cruiseSpeed
         
+        #Plot the function of motor torque - prop torque as a function of angular velocity to analyze convergence of the secant method
+        angV = np.linspace(-10000, 10000, 200)
+        f = np.zeros(200)
+
+        for i,w in enumerate(angV):
+            self.prop.angVel = w
+            self.prop.CalcTorqueCoef()
+            f[i-1] = self.CalcTorque(throttle, toRPM(w)) - self.prop.Cl*self.airDensity*(w/(2*np.pi))**2*self.prop.diameter**5
+            
+#        plt.plot(angV,f)
+#        plt.title("Throttle: "+str(throttle)+" Cruise Velocity: "+str(cruiseSpeed))
+#        plt.xlabel("Prop Angular Velocity [rad/s]")
+#        plt.ylabel("Motor Torque-Prop Torque [Nm]")
+#        plt.show()
+
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
         #Uses a secant method
         errorBound = 0.000001
@@ -93,8 +113,14 @@ class PropulsionUnit:
             f1 = motorTorque - propTorque
             
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
+            if w2 < 0: # Prop angular velocity will never be negative even if windmilling
+                w2 = w2*-1
+            elif w2 > 8000: # From a plot of f vs w, there is another zero above this point which does not make sense physically
+                w2 = 3000;
+
             approxError = abs((w2 - w1)/w2)
-            print(w2)
+            #print("w:",w2)
+            #print("Cl:",self.prop.Cl)
             
             w0 = w1
             f0 = f1
@@ -135,16 +161,16 @@ class PropulsionUnit:
         return t2
         
     #Plots thrust curves for propulsion unit up to a specified airspeed
-    def PlotThrustCurves(self, maxAirspeed):
+    def PlotThrustCurves(self, maxAirspeed, numVels, numThrSets):
         
-        vel = np.linspace(0, maxAirspeed, 10)
-        thr = np.linspace(0, 1, 10)
-        thrust = np.zeros((10, 10))
-        rpm = np.zeros((10,10))
+        vel = np.linspace(0, maxAirspeed, numVels)
+        thr = np.linspace(0, 1, numThrSets)
+        thrust = np.zeros((numVels, numThrSets))
+        rpm = np.zeros((numVels,numThrSets))
         
         plt.subplot(121)
-        for i in range(10):
-            for j in range(10):
+        for i in range(numVels):
+            for j in range(numThrSets):
                 
                 #print("Freestream Velocity: ", vel[i])
                 #print("Throttle Setting: ", thr[j])
@@ -152,10 +178,12 @@ class PropulsionUnit:
                 rpm[i][j] = toRPM(self.prop.angVel)
 
             plt.plot(thr, thrust[i])
-        plt.title("Thrust Curves at Various Cruise Speeds for: " + str(self.prop.name) + ", " + str(self.motor.name) + ", and " + str(self.batt.name))
+
+        plt.suptitle("Components: " + str(self.prop.name) + ", " + str(self.motor.name) + ", and " + str(self.batt.name))
+        plt.title("Thrust at Various Cruise Speeds and Throttle Settings")
         plt.ylabel("Thrust [N]")
         plt.xlabel("Throttle Setting")
-        plt.legend(list(vel))
+        plt.legend(list(vel), title="Airspeed [m/s]")
 
         plt.subplot(122)
         for i in range(10):
