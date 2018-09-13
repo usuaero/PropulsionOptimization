@@ -8,5 +8,6 @@ esc = "Kontronic SUN 3000"
 altitude = 2000
 
 test = unit.PropulsionUnit(prop, motor, battery, numCells, esc, altitude)
+print("Initialization complete. Plotting thrust curves.")
 test.PlotThrustCurves(100)
 

@@ -73,7 +73,6 @@ class PropulsionUnit:
     #Computes thrust produced at a given cruise speed and throttle setting
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
         self.prop.vInf = cruiseSpeed
-        print("Speed:",cruiseSpeed,"Throttle:",throttle)
         
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
         #Uses a secant method
@@ -94,9 +93,8 @@ class PropulsionUnit:
             f1 = motorTorque - propTorque
             
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
-            print("Tm:",motorTorque)
-            print("w:",w2)            
             approxError = abs((w2 - w1)/w2)
+            print(w2)
             
             w0 = w1
             f0 = f1
@@ -142,17 +140,28 @@ class PropulsionUnit:
         vel = np.linspace(0, maxAirspeed, 10)
         thr = np.linspace(0, 1, 10)
         thrust = np.zeros((10, 10))
+        rpm = np.zeros((10,10))
         
+        plt.subplot(121)
         for i in range(10):
             for j in range(10):
                 
                 #print("Freestream Velocity: ", vel[i])
                 #print("Throttle Setting: ", thr[j])
                 thrust[i][j] = self.CalcCruiseThrust(vel[i], thr[j])
-                
+                rpm[i][j] = toRPM(self.prop.angVel)
+
             plt.plot(thr, thrust[i])
         plt.title("Thrust Curves at Various Cruise Speeds for: " + str(self.prop.name) + ", " + str(self.motor.name) + ", and " + str(self.batt.name))
         plt.ylabel("Thrust [N]")
         plt.xlabel("Throttle Setting")
         plt.legend(list(vel))
+
+        plt.subplot(122)
+        for i in range(10):
+            plt.plot(thr, rpm[i])
+
+        plt.title("Prop Speed")
+        plt.ylabel("Speed [rpms]")
+        plt.xlabel("Throttle Setting")
         plt.show()
