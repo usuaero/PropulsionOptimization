@@ -9,23 +9,24 @@ from os import path
 import polyFit as fit
 import re
 
-#########################################
+
+##############################################################################
 #Set this bool to determine if the SQL database will be updated or not
 updateDatabase = True
-#########################################
-
+##############################################################################
+#Other parameters
 propDatabasePath = os.getcwd() + "/Props"
 
 #Specify which group of props to analyze
 wholeDatabase = os.listdir(path.join(propDatabasePath))
 apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
 seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
-mixedProps = ["apc_16x10","apce_4x3.3","kyosho_10x6","grcp_9x4"]
+mixedProps = apcTestProps + seligTestProps
 problemProps = ["da4022_9x6.75"]
 propSet = wholeDatabase
 
-thrustFitOrder = 3 #Order of polynomial fit to thrust vs advance ratio
-powerFitOrder = 3 #Order of polynomial fit to power vs advance ratio
+thrustFitOrder = 2 #Order of polynomial fit to thrust vs advance ratio
+powerFitOrder = 2 #Order of polynomial fit to power vs advance ratio
 
 fitOfThrustFitOrder = 1 #Order of polynomial fit to thrust coefs vs rpm
 fitOfPowerFitOrder = 1 #Order of polynomial fit to power coefs vs rpm
@@ -34,6 +35,8 @@ thrustZeroCoefs = [] #Which polynomial fit coefficients should be set to zero fo
 powerZeroCoefs = []
 
 showPlots = False
+###############################################################################
+
 propCount = 0
 
 if updateDatabase:
@@ -101,6 +104,8 @@ for propFolder in propSet:
             entries = line.split()
             if len(entries) != 0:
                 if entries[0] == "PROP":
+                    if float(entries[3]) > 10000.0:
+                        break
                     rpmCount += 1
                     advRatioCount.append(0)
                 elif entries[0][0].isdigit():
@@ -108,6 +113,7 @@ for propFolder in propSet:
         
         #Now read through the file to read in measurements
         dataFile.seek(0)
+        print(rpmCount)
         firstLine = dataFile.readline().split() #Get rid of the first line
         rpmIndex = -1
         advRatioIndex = -1
@@ -125,6 +131,8 @@ for propFolder in propSet:
             entries = line.split()
             if len(entries) != 0:
                 if entries[0] == "PROP":
+                    if float(entries[3]) > 10000.0:
+                        break
                     rpmIndex += 1
                     rpms[rpmIndex] = entries[3]
                     advRatioIndex = -1
@@ -353,7 +361,7 @@ for propFolder in propSet:
         ax.plot(propCoefDict[rpm][:,0], rpmExp, propCoefDict[rpm][:,2], "bo", markersize=4)
 
         a = fit.poly_func(fitOfThrustFit.T, rpm)
-        advRatioSpace = np.linspace(0, 1.2, 100)
+        advRatioSpace = np.linspace(0, 1.8, 100)
         thrust = fit.poly_func(a, advRatioSpace)
         rpmTheo = np.full(len(thrust), rpm)
         ax.plot(advRatioSpace, rpmTheo, thrust, "r-")

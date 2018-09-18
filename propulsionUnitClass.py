@@ -89,9 +89,9 @@ class PropulsionUnit:
             f[i-1] = self.CalcTorque(throttle, toRPM(w)) - self.prop.Cl*self.airDensity*(w/(2*np.pi))**2*self.prop.diameter**5
             
 #        plt.plot(angV,f)
-#        plt.title("Throttle: "+str(throttle)+" Cruise Velocity: "+str(cruiseSpeed))
-#        plt.xlabel("Prop Angular Velocity [rad/s]")
-#        plt.ylabel("Motor Torque-Prop Torque [Nm]")
+        plt.title("Throttle: "+str(throttle)+" Cruise Velocity: "+str(cruiseSpeed))
+        plt.xlabel("Prop Angular Velocity [rad/s]")
+        plt.ylabel("Motor Torque-Prop Torque [Nm]")
 #        plt.show()
 
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
@@ -128,6 +128,8 @@ class PropulsionUnit:
         
         self.prop.angVel = w2
         self.prop.CalcThrustCoef()
+        print("Throttle:",throttle,"Speed:",cruiseSpeed)
+        print("J:",self.prop.J)
             
         return self.prop.Ct*self.airDensity*(w0/(2*np.pi))**2*self.prop.diameter**4
     
@@ -186,7 +188,7 @@ class PropulsionUnit:
         plt.legend(list(vel), title="Airspeed [m/s]")
 
         plt.subplot(122)
-        for i in range(10):
+        for i in range(numVels):
             plt.plot(thr, rpm[i])
 
         plt.title("Prop Speed")

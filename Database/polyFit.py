@@ -4,6 +4,7 @@
 #should be set to zero.
 
 import numpy as np
+from scipy.optimize import least_squares
 
 def poly_fit(n,xx,yy,forcezero=None):
 	good = np.where(~(np.isnan(xx)) & ~(np.isnan(yy)))
@@ -39,6 +40,7 @@ def poly_func(a,x):
 	n = len(a)
 	for i in range(n):
 		f += a[i] * x ** float(i)
+	#print(f)
 	return f
 
 def r2(aa,xx,yy):
@@ -83,3 +85,16 @@ def force_good_poly_fit(n,xx,yy,tol,sym=False):
 	mx = max(y)
 	
 	return a, x, y, x_bad, y_bad, r, mx
+
+def constrainedFit(n,xx,yy,forcezero=None):
+# Fits a polynomial, ensuring the highest-order coefficient is negative so that end behavior is as expected.
+	def fun(a):
+		res = poly_func(a,xx)-yy
+		res[np.isnan(res)] = 0
+		return res
+
+	x0 = -0.01*np.ones(n).astype(float)
+	upperBounds = np.full(n,np.inf)
+	upperBounds[-1] = 0 # Costrain last coef to be negative
+	result = least_squares(fun,x0,bounds=(-np.inf,upperBounds))
+	return result.x, result.cost
