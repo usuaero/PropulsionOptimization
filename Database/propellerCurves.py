@@ -113,7 +113,6 @@ for propFolder in propSet:
         
         #Now read through the file to read in measurements
         dataFile.seek(0)
-        print(rpmCount)
         firstLine = dataFile.readline().split() #Get rid of the first line
         rpmIndex = -1
         advRatioIndex = -1
@@ -176,13 +175,25 @@ for propFolder in propSet:
     #----------------------------------END OF APC--------------------------------------------------
         
     elif dataType == "selig": #Data files from U of I U-C
+        continue
         
         diaPitch = propFolder.split("_")[1].split("x")
         diameter = float(diaPitch[0])
+        met = False
+        if diameter>50:
+            diameter = diameter/25.4;
+            met = True
         if "deg" in diaPitch[1]:
-            pitch = 2*np.pi*0.525*diameter*np.tan(float(re.search(r'\d+', diaPitch[1]).group()))
+            pitch = 2*np.pi*0.525*diameter*np.tan(np.radians(float(re.search(r'\d+', diaPitch[1]).group())))
         else:
             pitch = float(diaPitch[1])
+            if met:
+                pitch = pitch/25.4;
+
+        if pitch > 15:
+            print("Diameter:",diameter)
+            print("Pitch:",pitch)
+            input("Detected a large pitch; press any key to continue...")
         
         #Loop through files to count sets of measurements
         rpms = []
@@ -457,6 +468,7 @@ for propFolder in propSet:
                 dbcur.execute(insertCommand)
 
 if updateDatabase:
+    #Clean database
     dbcur.execute("select * from props")
     print(dbcur.fetchall())
     print("Successfully stored ", propCount, " props.")
