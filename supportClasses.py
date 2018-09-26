@@ -63,8 +63,8 @@ class Propeller:
     def __init__(self, name, dia, pitch, coefs):
 
         self.name = name
-        self.diameter = float(dia)*0.0254
-        self.pitch = float(pitch)*0.0254
+        self.diameter = float(dia)
+        self.pitch = float(pitch)
         self.thrustFitOrder = int(coefs[0])
         self.fitOfThrustFitOrder = int(coefs[1])
         self.powerFitOrder = int(coefs[2])
@@ -111,13 +111,13 @@ class Propeller:
 
     def CalcTorqueCoef(self):
         self.rpm = toRPM(self.angVel)
-        self.J = self.vInf/(self.rpm*self.diameter)
+        self.J = self.vInf/(self.rpm*self.diameter/12)
         a = fit.poly_func(self.powerCoefs.T, self.rpm)
         self.Cl = fit.poly_func(a, self.J)/2*np.pi
         
 
     def CalcThrustCoef(self):
         self.rpm = toRPM(self.angVel)
-        self.J = self.vInf/(self.rpm*self.diameter)
+        self.J = self.vInf/(self.rpm*self.diameter/12)
         a = fit.poly_func(self.thrustCoefs.T, self.rpm)
         self.Ct = fit.poly_func(a, self.J)

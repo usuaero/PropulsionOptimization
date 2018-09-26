@@ -1,7 +1,7 @@
 import propulsionUnitClass as unit
 
-prop = "kyosho_10x6"
-motor = "Kontronik Pyro 700-34"
+prop = "apc_9x3"
+motor = "EMAX GF2210/20 1534KV"
 battery = "Turnigy 5000mAh 40C"
 numCells = 3
 esc = "Kontronic SUN 3000"

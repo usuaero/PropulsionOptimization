@@ -47,8 +47,6 @@ if updateDatabase:
     powerCoefs = ["power"+str(x//(fitOfPowerFitOrder+1))+str(x%(fitOfPowerFitOrder+1))+" real," for x in range(((powerFitOrder+1)*(fitOfPowerFitOrder+1)))]
     thrust = " ".join(thrustCoefs)
     power = " ".join(powerCoefs)[:-1]
-    print(thrust)
-    print(power)
     createTableCommand = """create table Props (id integer primary key, Name varchar, Diameter real, Pitch real, 
                             thrustFitOrder int default {tfo},
                             fitOfThrustFitOrder int default {fotfo},
@@ -56,15 +54,11 @@ if updateDatabase:
                             fitOfPowerFitOrder int default {fopfo},
                             """+thrust+" "+power+")"
     createTableCommand = createTableCommand.format(tfo = str(thrustFitOrder), fotfo = str(fitOfThrustFitOrder), pfo = str(powerFitOrder), fopfo = str(fitOfPowerFitOrder))
-    print(createTableCommand)
     dbcur.execute(createTableCommand)
 
-    dbcur.execute("select * from props")
-    for columnName in dbcur.description:
-        print(columnName)
-    print(dbcur.fetchall())
-
 for propFolder in propSet:
+
+    plt.close('all')
     
     if ".py" in str(propFolder):
         continue
@@ -84,11 +78,9 @@ for propFolder in propSet:
         if ("geom" in filename) or ("static" in filename):
             dataType = "selig"
                 
-    #print("Type: ", dataType)
     propCount += 1
     
     if dataType == "apc": #Data files from APC (manufacturer)
-        #continue
         dataFile = open(propFolderPath + "/" + dataFileName)
         firstLine = dataFile.readline().split()
         diaPitch = firstLine[0].split("x")
@@ -122,8 +114,6 @@ for propFolder in propSet:
         propCoefArray = None
         propCoefDict = {}
         
-        #print("\nFit thrust and power to advance ratio.")
-        
         for line in dataFile:
             
             line = line.replace("-", " ")
@@ -145,38 +135,26 @@ for propFolder in propSet:
                     propCoefArray[advRatioIndex, 3] = entries[4] #Store power coef
                     
                     if advRatioIndex == advRatioCount[rpmIndex] - 1: #Determine polynomial fit for that rpm set
-                        #print("RPM: ", rpms[rpmIndex])
                         thrustFitArray[rpmIndex], r = fit.poly_fit(thrustFitOrder+1, propCoefArray[:,0], propCoefArray[:,2])
-                        #print("R2 for Ct:", r**2)
                         powerFitArray[rpmIndex], r = fit.poly_fit(powerFitOrder+1, propCoefArray[:,0], propCoefArray[:,3])
-                        #print("R2 for Cp:", r**2)
                         propCoefDict[rpms[rpmIndex]] = propCoefArray
         
         dataFile.close()
         
-        #print("\nFit thrust coefficients to rpm")
         fitOfThrustFit = np.zeros((thrustFitOrder+1, fitOfThrustFitOrder+1))
         
         for i in range(thrustFitOrder+1):
             fitOfThrustFit[i], r = fit.poly_fit(fitOfThrustFitOrder+1, rpms, thrustFitArray[:,i])
-            #print(r**2)
         
-        #print("\nFit power coefficients to rpm")
         fitOfPowerFit = np.zeros((powerFitOrder+1, fitOfPowerFitOrder+1))
 
         for i in range(powerFitOrder+1):
             fitOfPowerFit[i], r = fit.poly_fit(fitOfPowerFitOrder+1, rpms, powerFitArray[:,i])
-            #print(r**2)
         
-        #print("Max Error: ", maxError)
         
-        print("Thrust Fit:\n", fitOfThrustFit)
-        print("Power Fit:\n", fitOfPowerFit)        
     #----------------------------------END OF APC--------------------------------------------------
         
     elif dataType == "selig": #Data files from U of I U-C
-        continue
-        
         diaPitch = propFolder.split("_")[1].split("x")
         diameter = float(diaPitch[0])
         met = False
@@ -189,11 +167,6 @@ for propFolder in propSet:
             pitch = float(diaPitch[1])
             if met:
                 pitch = pitch/25.4;
-
-        if pitch > 15:
-            print("Diameter:",diameter)
-            print("Pitch:",pitch)
-            input("Detected a large pitch; press any key to continue...")
         
         #Loop through files to count sets of measurements
         rpms = []
@@ -232,7 +205,6 @@ for propFolder in propSet:
         advRatioIndex = -1
         
         for dataFileName in os.listdir(path.join(propFolderPath)):
-            #print(dataFileName)
             if not ("static" in dataFileName or "geom" in dataFileName or "PER" in dataFileName):
                 rpmIndex += 1
                 advRatioIndex = -1
@@ -265,40 +237,34 @@ for propFolder in propSet:
                     
                 dataFile.close()
                 
-        print("Fit static coefficients to RPM")
         #Create polynomial fit of data
         staticThrustFitOrder = 3 #Order of polynomial to fit static thrust to
         staticPowerFitOrder = 3 #Order of polynomial to fit static power to
         
         #Fit curve to static thrust to give 0 advance ratio  results
         staticThrustFit, r = fit.poly_fit(staticThrustFitOrder, staticArray[:,0], staticArray[:,1])
-        #print("R2 for Ct: ", r**2)
         staticPowerFit,r  = fit.poly_fit(staticPowerFitOrder, staticArray[:,0], staticArray[:,2])
-        #print("R2 for Cp: ", r**2, "\n")
         
-        plt.subplot(1,2,1)
-        plt.plot(staticArray[:,0], staticArray[:,1])
-        plt.xlabel("RPM")
-        plt.ylabel("Thrust Coef")
-        
-        plt.subplot(1,2,2)
-        plt.plot(staticArray[:,0], staticArray[:,2])
-        plt.xlabel("RPM")
-        plt.ylabel("Power Coef")
-        plt.suptitle("Static data for "+propFolder)
         if showPlots:
+            plt.subplot(1,2,1)
+            plt.plot(staticArray[:,0], staticArray[:,1])
+            plt.xlabel("RPM")
+            plt.ylabel("Thrust Coef")
+        
+            plt.subplot(1,2,2)
+            plt.plot(staticArray[:,0], staticArray[:,2])
+            plt.xlabel("RPM")
+            plt.ylabel("Power Coef")
+            plt.suptitle("Static data for "+propFolder)
             plt.show()
         
         #Fit dynamic data        
         thrustFitArray = np.zeros((rpmCount, thrustFitOrder+1))
         powerFitArray = np.zeros((rpmCount, powerFitOrder+1))
         
-        #print("\nFitting thrust and power to advance ratio")
-        
         propCoefDict = {}
         
         for rpmIndex in range(rpmCount):
-            #print("RPM: ", rpms[rpmIndex])
             
             staticThrust = fit.poly_func(staticThrustFit, rpms[rpmIndex])
             staticPower = fit.poly_func(staticPowerFit, rpms[rpmIndex])
@@ -316,29 +282,22 @@ for propFolder in propSet:
             propCoefDict[rpms[rpmIndex]] = np.asarray([advRatio, np.zeros(len(advRatio)), thrust, power]).T
             
             thrustFitArray[rpmIndex], r = fit.poly_fit(thrustFitOrder+1, advRatio, thrust)
-            #print("R2 for Ct: ", r**2)
             powerFitArray[rpmIndex], r = fit.poly_fit(powerFitOrder+1, advRatio, power, forcezero=[])
-            #print("R2 for Cp: ", r**2)
             
         #Fit thrust and power fit coefficients to rpm
-        #print("\nFit thrust coefficients to rpm")
         fitOfThrustFit = np.zeros((thrustFitOrder+1, fitOfThrustFitOrder+1))
         
         for i in range(thrustFitOrder+1):
             fitOfThrustFit[i], r = fit.poly_fit(fitOfThrustFitOrder+1, rpms, thrustFitArray[:,i], forcezero=thrustZeroCoefs)
-            #print(r**2)
         
-        #print("\nFit power coefficients to rpm")
         fitOfPowerFit = np.zeros((powerFitOrder+1, fitOfPowerFitOrder+1))
 
         for i in range(powerFitOrder+1):
             fitOfPowerFit[i], r = fit.poly_fit(fitOfPowerFitOrder+1, rpms, powerFitArray[:,i], forcezero=powerZeroCoefs)
-            #print(r**2)
     #-----------------------END OF SELIG/UIUC---------------------------------------------
         
     #Predict thrust and power based off of fits
     #ALL FOLLOWING CODE IS EXECUTED FOR BOTH TYPES OF PROPS
-    #print("\nThrust Prediction")
     maxError = 0
     fig = plt.figure(figsize=plt.figaspect(1.))
     fig.suptitle(propFolder)
@@ -385,7 +344,6 @@ for propFolder in propSet:
                 maxError = abs(exp - theo)
             
         RMSerror = np.sqrt(SSE/len(thrust))
-        #print("RMS error: ", RMSerror)
            
         a = fit.poly_func(fitOfThrustFit.T, rpm+500)
         thrust = fit.poly_func(a, advRatioSpace)
@@ -401,9 +359,7 @@ for propFolder in propSet:
     ax.set_xlabel("Advance Ratio")
     ax.set_ylabel("RPM")
     ax.set_zlabel("Thrust Coefficient")
-    #print("Max Error: ", maxError)
         
-    #print("\nPower Prediction")
     maxError = 0
     ax = fig.add_subplot(2,2,4, projection='3d')
     
@@ -424,7 +380,6 @@ for propFolder in propSet:
                 maxError = abs(exp - theo)
             
         RMSerror = np.sqrt(SSE/len(power))
-        #print("RMS Error: ", RMSerror)
         
         a = fit.poly_func(fitOfPowerFit.T, rpm+500)
         power = fit.poly_func(a, advRatioSpace)
@@ -441,30 +396,23 @@ for propFolder in propSet:
     ax.set_xlabel("Advance Ratio")
     ax.set_ylabel("RPM")
     ax.set_zlabel("Power Coefficient")
-    #print("Max Error: ", maxError)
     if showPlots:
         plt.show()
            
-    print("Thrust Fit:\n", fitOfThrustFit)
-    print("Power Fit:\n", fitOfPowerFit)
-
     if updateDatabase:
     
         #Store coefficients and geometry in the components.db database
         insertCommand = "insert into props (Name, Diameter, Pitch) values (\""+str(propFolder)+"\","+str(diameter)+","+str(pitch)+")"
-        print(insertCommand)
         dbcur.execute(insertCommand)
 
         for i in range(thrustFitOrder+1):
             for j in range(fitOfThrustFitOrder+1):
                 insertCommand = "update props set thrust"+str(i)+str(j)+"="+str(fitOfThrustFit[i,j])+" where name = \""+str(propFolder)+"\""
-                print(insertCommand)
                 dbcur.execute(insertCommand)
 
         for i in range(powerFitOrder+1):
             for j in range(fitOfPowerFitOrder+1):
                 insertCommand = "update props set power"+str(i)+str(j)+"="+str(fitOfPowerFit[i,j])+" where name = \""+str(propFolder)+"\""
-                print(insertCommand)
                 dbcur.execute(insertCommand)
 
 if updateDatabase:
@@ -476,3 +424,4 @@ if updateDatabase:
     db.close()
 
 print("Successfully analyzed ", propCount, " props.")
+

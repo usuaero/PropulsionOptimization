@@ -60,40 +60,30 @@ class PropulsionUnit:
         if showData:
             print("----ESC Data----\n",escInfo)
         self.esc = s.ESC(escInfo[1], escInfo[5], escInfo[2], escInfo[4])
+
+        _,_,_,self.airDensity = coesa.table(altitude)
+        self.airDensity = self.airDensity*0.0019403203 # Converts kg/m^3 to slug/ft^3
         
         #Initialize exterior parameters to be set later
         self.prop.vInf = 0
         self.prop.angVel = 0
-        _,_,_,self.airDensity = coesa.table(altitude)
+
         db.close()
-        
 
         
-    #Computes motor torque given throttle setting and revolutions (rpm)
+    #Computes motor torque (ft*lbf) given throttle setting and revolutions (rpm)
     def CalcTorque(self, throttle, revs):
         etaS = 1 - 0.078*(1 - throttle)
         Im = (etaS*throttle*self.batt.V0 - (self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R + self.esc.R + self.motor.R)
+        # Note: the 7.0432 constant converts units [(Nm/ftlb)(min/s)(rad/rev)]
         return 7.0432*self.motor.Gr/self.motor.Kv * (Im - self.motor.I0)
     
     #Computes thrust produced at a given cruise speed and throttle setting
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
+        if cruiseSpeed == 0 and throttle == 0:
+            return 0
         self.prop.vInf = cruiseSpeed
         
-        #Plot the function of motor torque - prop torque as a function of angular velocity to analyze convergence of the secant method
-        angV = np.linspace(-10000, 10000, 200)
-        f = np.zeros(200)
-
-        for i,w in enumerate(angV):
-            self.prop.angVel = w
-            self.prop.CalcTorqueCoef()
-            f[i-1] = self.CalcTorque(throttle, toRPM(w)) - self.prop.Cl*self.airDensity*(w/(2*np.pi))**2*self.prop.diameter**5
-            
-#        plt.plot(angV,f)
-        plt.title("Throttle: "+str(throttle)+" Cruise Velocity: "+str(cruiseSpeed))
-        plt.xlabel("Prop Angular Velocity [rad/s]")
-        plt.ylabel("Motor Torque-Prop Torque [Nm]")
-#        plt.show()
-
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
         #Uses a secant method
         errorBound = 0.000001
@@ -101,7 +91,7 @@ class PropulsionUnit:
         w0 = 300 #An initial guess of the prop's angular velocity
         self.prop.angVel = w0
         self.prop.CalcTorqueCoef()
-        f0 = self.CalcTorque(throttle, toRPM(w0)) - self.prop.Cl*self.airDensity*(w0/(2*np.pi))**2*self.prop.diameter**5
+        f0 = self.CalcTorque(throttle, toRPM(w0)) - self.prop.Cl*self.airDensity*(w0/(2*np.pi))**2*(self.prop.diameter/12)**5
         w1 = w0 * 1.1
         
         while approxError >= errorBound:
@@ -109,7 +99,7 @@ class PropulsionUnit:
             self.prop.angVel = w1
             self.prop.CalcTorqueCoef()
             motorTorque = self.CalcTorque(throttle, toRPM(w1))
-            propTorque = self.prop.Cl*self.airDensity*(w1/(2*np.pi))**2*self.prop.diameter**5
+            propTorque = self.prop.Cl*self.airDensity*(w1/(2*np.pi))**2*(self.prop.diameter/12)**5
             f1 = motorTorque - propTorque
             
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
@@ -119,8 +109,6 @@ class PropulsionUnit:
                 w2 = 3000;
 
             approxError = abs((w2 - w1)/w2)
-            #print("w:",w2)
-            #print("Cl:",self.prop.Cl)
             
             w0 = w1
             f0 = f1
@@ -128,10 +116,8 @@ class PropulsionUnit:
         
         self.prop.angVel = w2
         self.prop.CalcThrustCoef()
-        print("Throttle:",throttle,"Speed:",cruiseSpeed)
-        print("J:",self.prop.J)
             
-        return self.prop.Ct*self.airDensity*(w0/(2*np.pi))**2*self.prop.diameter**4
+        return self.prop.Ct*self.airDensity*(w0/(2*np.pi))**2*(self.prop.diameter/12)**5
     
     #Computes required throttle setting for a given thrust and cruise speed
     def CalcCruiseThrottle(self, cruiseSpeed, reqThrust):
@@ -183,9 +169,9 @@ class PropulsionUnit:
 
         plt.suptitle("Components: " + str(self.prop.name) + ", " + str(self.motor.name) + ", and " + str(self.batt.name))
         plt.title("Thrust at Various Cruise Speeds and Throttle Settings")
-        plt.ylabel("Thrust [N]")
+        plt.ylabel("Thrust [lbf]")
         plt.xlabel("Throttle Setting")
-        plt.legend(list(vel), title="Airspeed [m/s]")
+        plt.legend(list(vel), title="Airspeed [ft/s]")
 
         plt.subplot(122)
         for i in range(numVels):
