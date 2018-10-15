@@ -39,7 +39,10 @@ for record in battFile:
     if isNum(record["CRATING"]):
         iMax = record["CAPACITY"]/1000*record["CRATING"]
     else:
-        iMax = "NULL"
+        continue
+    
+    if record["CELLNAME"] == " Constant voltage":
+        continue
 
     if isNum(record["VOLTAGE"]):
         volt = record["VOLTAGE"]
@@ -50,6 +53,9 @@ for record in battFile:
         chem = record["CELLTYPE"]
     else:
         chem = "NULL"
+
+    if volt is "NULL" and chem is "NULL":
+        continue
 
     command = formatStr.format(battName = record["CELLNAME"], battImax = iMax, battCap = record["CAPACITY"], battWeight = record["WEIGHT"], battRi = record["INTERTANCE"], battVolt = volt, battChem = chem)
     print(command)
@@ -72,12 +78,18 @@ batteries = inCursor.fetchall()
 
 for battery in batteries:
 
+    if battery[2] == " Constant voltage":
+        continue
     formatStr = """INSERT INTO Batteries (Name, Imax, Capacity, Weight, Ri, Volt) VALUES ("{battName}", "{battImax}", "{battCap}", "{battWeight}", "{battRi}", "{battVolt}");"""
     if isNum(battery[7]): #Must check because python will not multiply a None by a float for the unit conversion
-        weight = battery[7]*0.35274
+        weight = battery[7]*0.035274
     else:
         weight = battery[7]
-    command = formatStr.format(battName = str(battery[2]), battImax = str(battery[4]), battCap = str(battery[6]), battWeight = str(weight), battRi = str(battery[8]), battVolt = str(battery[9]))
+    if isNum(battery[8]):
+        res = battery[8]/1000
+    else:
+        res = battery[8]
+    command = formatStr.format(battName = str(battery[2]), battImax = str(battery[4]), battCap = str(battery[6]), battWeight = str(weight), battRi = str(res), battVolt = str(battery[9]))
     cursor.execute(command)
     
 print("Reading Database after DriveCalc")
@@ -88,6 +100,7 @@ for r in result:
 
 # Code for cleaning database
 cursor.execute("update Batteries set Chem = 'LiPo' where Volt = 3.7")
+cursor.execute("update Batteries set Chem = 'Ni' where Volt = 1.2")
 
 print("Reading Database after Cleaning")
 cursor.execute("SELECT * FROM Batteries")

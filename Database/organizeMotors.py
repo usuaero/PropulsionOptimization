@@ -1,4 +1,3 @@
-
 #Used to organize motors into the database
 #There are three sources of motor parameters: DriveCalc, MotoCalc, csv from Josh
 import sqlite3 as sql
@@ -37,6 +36,8 @@ print("Reading MotoCalc Database")
 for record in motoCalcFile:
     
     print(record)
+    if record["MOTORSTANT"] == 0:
+        continue
     
     formatStr = """INSERT INTO Motors (name, kv, resistance, no_load_current, weight) VALUES ("{motorName}", "{motorKv}", "{motorResistance}", "{motorNoLoadCurrent}", "{motorWeight}");"""
     command = formatStr.format(motorName = record['MOTORNAME'], motorKv = record['MOTORSTANT'], motorResistance = record['ARMATTANCE'], motorNoLoadCurrent = record['IDLECRRENT'], motorWeight = record['WEIGHT'])
@@ -58,6 +59,8 @@ inCursor.execute("SELECT * FROM motors")
 motors = inCursor.fetchall()
 
 for motor in motors:
+    if motor[16] == 0:
+        continue
 
     formatStr = """INSERT INTO Motors (name, kv, resistance, weight, gear_ratio) VALUES ("{motorName}", "{motorKv}", "{motorResistance}", "{motorWeight}", "{motorGearRatio}");"""
     command = formatStr.format(motorName = str(motor[2]).replace("\"", " "), motorKv = str(motor[16]), motorResistance = str(motor[17]), motorWeight = str(motor[13]*0.035274), motorGearRatio = str(motor[14]))

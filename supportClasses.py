@@ -17,7 +17,7 @@ def toRPM(rads):
 class Battery:
 
     #Initialize members from properties
-    def __init__(self, name, numCells, capacity, voltage, resistance, weight):
+    def __init__(self, name, numCells, capacity, voltage, resistance, weight, maxCurr):
 
         #Define members from inputs
         self.n = int(numCells)
@@ -26,6 +26,7 @@ class Battery:
         self.cellR = float(resistance)
         self.name = name
         self.weight = float(weight)
+        self.iMax = float(maxCurr)
 
         #Members derived from inputs
         self.V0 = self.cellV * self.n
@@ -78,14 +79,40 @@ class Propeller:
         self.vInf = 0.0
         self.angVel = 0.0
 
+        if(False):
+            self.PlotCoefs()
+
+    def CalcTorqueCoef(self):
+        self.rpm = toRPM(self.angVel)
+        self.rps = self.rpm/60
+        self.J = self.vInf/(self.rps*self.diameter/12)
+        a = fit.poly_func(self.powerCoefs.T, self.rpm)
+        if(a[-1]>0):#Quadratic coefficient should always be non-positive
+            a[-1] = 0
+        self.Cl = fit.poly_func(a, self.J)/2*np.pi
+        
+
+    def CalcThrustCoef(self):
+        self.rpm = toRPM(self.angVel)
+        self.rps = self.rpm/60
+        self.J = self.vInf/(self.rps*self.diameter/12)
+        a = fit.poly_func(self.thrustCoefs.T, self.rpm)
+        if(a[-1]>0):#Quadratic coefficient should always be non-positive
+            a[-1] = 0
+        self.Ct = fit.poly_func(a, self.J)
+
+    def PlotCoefs(self):
         #Plot thrust and torque coefficients
         rpms = np.linspace(0,6000,10)
         Js = np.linspace(0,1.4,10)
         fig = plt.figure(figsize=plt.figaspect(1.))
+        fig.suptitle(self.name)
         ax = fig.add_subplot(1,2,1, projection='3d')
 
         for rpm in rpms:
             a = fit.poly_func(self.thrustCoefs.T, rpm)
+            if(a[-1]>0):#Quadratic coefficient should always be non-positive
+                a[-1] = 0
             thrust = fit.poly_func(a, Js)
             rpmForPlot = np.full(len(thrust),rpm)
             ax.plot(Js,rpmForPlot,thrust, 'r-')
@@ -99,6 +126,8 @@ class Propeller:
 
         for rpm in rpms:
             a = fit.poly_func(self.powerCoefs.T, rpm)
+            if(a[-1]>0):#Quadratic coefficient should always be non-positive
+                a[-1] = 0
             power = fit.poly_func(a, Js)
             rpmForPlot = np.full(len(power),rpm)
             ax.plot(Js,rpmForPlot,power, 'r-')
@@ -108,16 +137,3 @@ class Propeller:
         ax.set_ylabel("RPM")
         ax.set_zlabel("Power Coefficient")
         plt.show()
-
-    def CalcTorqueCoef(self):
-        self.rpm = toRPM(self.angVel)
-        self.J = self.vInf/(self.rpm*self.diameter/12)
-        a = fit.poly_func(self.powerCoefs.T, self.rpm)
-        self.Cl = fit.poly_func(a, self.J)/2*np.pi
-        
-
-    def CalcThrustCoef(self):
-        self.rpm = toRPM(self.angVel)
-        self.J = self.vInf/(self.rpm*self.diameter/12)
-        a = fit.poly_func(self.thrustCoefs.T, self.rpm)
-        self.Ct = fit.poly_func(a, self.J)
