@@ -26,6 +26,7 @@ cursor.execute("drop table Motors")# The database is refreshed every time
 
 cursor.execute("""CREATE TABLE Motors (id INTEGER PRIMARY KEY, 
                                       name VARCHAR(40), 
+                                      manufacturer VARCHAR(40),
                                       kv FLOAT, 
                                       gear_ratio FLOAT default 1.0, 
                                       resistance FLOAT, 
@@ -38,9 +39,13 @@ for record in motoCalcFile:
     print(record)
     if record["MOTORSTANT"] == 0:
         continue
+    if "Car Motor" in record["MOTORNAME"]:
+        manufacturer = "UNKNOWN"
+    else:
+        manufacturer = str(record["MOTORNAME"].split(" ")[0]).upper()
     
-    formatStr = """INSERT INTO Motors (name, kv, resistance, no_load_current, weight) VALUES ("{motorName}", "{motorKv}", "{motorResistance}", "{motorNoLoadCurrent}", "{motorWeight}");"""
-    command = formatStr.format(motorName = record['MOTORNAME'], motorKv = record['MOTORSTANT'], motorResistance = record['ARMATTANCE'], motorNoLoadCurrent = record['IDLECRRENT'], motorWeight = record['WEIGHT'])
+    formatStr = """INSERT INTO Motors (name, manufacturer, kv, resistance, no_load_current, weight) VALUES ("{motorName}", "{motorManu}", {motorKv}, {motorResistance}, {motorNoLoadCurrent}, {motorWeight});"""
+    command = formatStr.format(motorName = record['MOTORNAME'], motorManu = manufacturer, motorKv = record['MOTORSTANT'], motorResistance = record['ARMATTANCE'], motorNoLoadCurrent = record['IDLECRRENT'], motorWeight = record['WEIGHT'])
     cursor.execute(command)
 
 print("Reading Database after MotoCalc")
@@ -61,9 +66,16 @@ motors = inCursor.fetchall()
 for motor in motors:
     if motor[16] == 0:
         continue
+    name = motor[2].replace("\""," ")
+    manufacturer = "UNKNOWN"
+    for word in name.split(" "):
+        print(word)
+        if len(word) > 0 and word[0].isalpha():
+            manufacturer = word.upper()
+            break
 
-    formatStr = """INSERT INTO Motors (name, kv, resistance, weight, gear_ratio) VALUES ("{motorName}", "{motorKv}", "{motorResistance}", "{motorWeight}", "{motorGearRatio}");"""
-    command = formatStr.format(motorName = str(motor[2]).replace("\"", " "), motorKv = str(motor[16]), motorResistance = str(motor[17]), motorWeight = str(motor[13]*0.035274), motorGearRatio = str(motor[14]))
+    formatStr = """INSERT INTO Motors (name, manufacturer, kv, resistance, weight, gear_ratio) VALUES ("{motorName}", "{manu}", {motorKv}, {motorResistance}, {motorWeight}, {motorGearRatio});"""
+    command = formatStr.format(motorName = name, manu = manufacturer, motorKv = motor[16], motorResistance = motor[17], motorWeight = motor[13]*0.035274, motorGearRatio = motor[14])
     cursor.execute(command)
     
 print("Reading Database after DriveCalc")
@@ -89,8 +101,8 @@ for row in motorCsvReader:
     resistance = row[3]
     I0 = row[4]
 
-    formatStr = """INSERT INTO Motors (name, kv, resistance, no_load_current) VALUES ("{motorName}", "{motorKv}", "{motorResistance}", "{motorI0}");"""
-    command = formatStr.format(motorName = name, motorKv = kv, motorResistance = resistance, motorI0 = I0)
+    formatStr = """INSERT INTO Motors (name, manufacturer, kv, resistance, no_load_current) VALUES ("{motorName}", "{manufacturer}", {motorKv}, {motorResistance}, {motorI0});"""
+    command = formatStr.format(motorName = name, manufacturer = row[0].upper(), motorKv = kv, motorResistance = resistance, motorI0 = I0)
     cursor.execute(command)
 
 print("Reading Database after CSV")

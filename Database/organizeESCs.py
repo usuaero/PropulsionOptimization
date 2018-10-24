@@ -19,14 +19,11 @@ cursor = connection.cursor()
 cursor.execute("drop table ESCs")
 cursor.execute("""create table ESCs (id INTEGER PRIMARY KEY, 
                                       Name VARCHAR(40), 
+                                      manufacturer VARCHAR,
                                       Imax FLOAT, 
                                       Ipeak FLOAT, 
                                       Weight FLOAT,
-                                      Ri FLOAT,
-                                      NiMHmin INT,
-                                      NiMHmax INT,
-                                      LiPomin INT,
-                                      LiPomax INT);""")
+                                      Ri FLOAT);""")
 
 print("Reading MotoCalc Database")
 escFilePath = os.getcwd() + "/ESCs/ESC8.DBF"
@@ -37,8 +34,8 @@ for record in escFile:
     if record["MAXCURRENT"] == 0 or record["MAXCURRENT"] == None:
         continue
 
-    formatStr = """INSERT INTO ESCs (Name, Weight, Imax, Ri) VALUES ("{name}", "{weight}",  "{iMax}", "{Ri}");"""
-    command = formatStr.format(name = record["ESCNAME"], weight = record["WEIGHT"], iMax = record["MAXCURRENT"], Ri = record["RESISTANCE"])
+    formatStr = """INSERT INTO ESCs (Name, manufacturer, Weight, Imax, Ri) VALUES ("{name}", "{manu}", {weight},  {iMax}, {Ri});"""
+    command = formatStr.format(name = record["ESCNAME"], manu = record["ESCNAME"].split(" " )[0].upper(), weight = record["WEIGHT"], iMax = record["MAXCURRENT"], Ri = record["RESISTANCE"])
     cursor.execute(command)
 
 print("Reading Database after MotoCalc")
@@ -60,8 +57,8 @@ for esc in escs:
 
     if esc[4] == 0 or esc[4] == None:
         continue
-    formatStr = """INSERT INTO ESCs (Name, Imax, Ipeak, Weight, Ri, NiMHmin, NiMHmax, LiPomin, LiPomax) VALUES ("{name}", "{iMax}", "{iPeak}", "{weight}", "{res}", "{nmhMin}", "{nmhMax}", "{liMin}", "{liMax}");"""
-    command = formatStr.format(name = str(esc[2]), iMax = str(esc[4]), iPeak = str(esc[5]), weight = str(esc[7]), res  = str(esc[6]), nmhMin = str(esc[8]), nmhMax = str(esc[9]), liMin = str(esc[10]), liMax = str(esc[11]))
+    formatStr = """INSERT INTO ESCs (Name, manufacturer, Imax, Ipeak, Weight, Ri) VALUES ("{name}", "{manu}", {iMax}, {iPeak}, {weight}, {res});"""
+    command = formatStr.format(name = esc[2], manu = esc[2].split(" ")[0].upper(), iMax = esc[4], iPeak = esc[5], weight = esc[7]*0.035274, res  = esc[6])
     cursor.execute(command)
     
 print("Reading Database after DriveCalc")

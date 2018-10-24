@@ -17,7 +17,7 @@ def toRPM(rads):
 class Battery:
 
     #Initialize members from properties
-    def __init__(self, name, numCells, capacity, voltage, resistance, weight, maxCurr):
+    def __init__(self, name, manu, numCells, capacity, voltage, resistance, weight, maxCurr):
 
         #Define members from inputs
         self.n = int(numCells)
@@ -25,6 +25,7 @@ class Battery:
         self.cellV = float(voltage)
         self.cellR = float(resistance)
         self.name = name
+        self.manufacturer = manu
         self.weight = float(weight)
         self.iMax = float(maxCurr)
 
@@ -36,10 +37,11 @@ class Battery:
 class ESC:
 
     #Initialization of the class from properties
-    def __init__(self, name, resistance, iMax, weight):
+    def __init__(self, name, manu, resistance, iMax, weight):
 
         self.R = float(resistance)
         self.name = name
+        self.manufacturer = manu
         self.iMax = float(iMax)
         self.weight = float(weight)
         
@@ -47,7 +49,7 @@ class ESC:
 class Motor:
 
     #Initialization of the class from properties
-    def __init__(self, name, Kv, gearRatio, noLoadCurrent, resistance, weight):
+    def __init__(self, name, manu, Kv, gearRatio, noLoadCurrent, resistance, weight):
 
         #Initialize members from constructor inputs
         self.Kv = float(Kv)
@@ -55,15 +57,17 @@ class Motor:
         self.I0 = float(noLoadCurrent)
         self.R = float(resistance)
         self.name = name
+        self.manufacturer = manu
         self.weight = float(weight)
 
 #A class of propellers defined by database test files
 class Propeller:
     
     #Initializes the prop from properties
-    def __init__(self, name, dia, pitch, coefs):
+    def __init__(self, name, manu, dia, pitch, coefs):
 
         self.name = name
+        self.manufacturer = manu
         self.diameter = float(dia)
         self.pitch = float(pitch)
         self.thrustFitOrder = int(coefs[0])
@@ -103,7 +107,7 @@ class Propeller:
 
     def PlotCoefs(self):
         #Plot thrust and torque coefficients
-        rpms = np.linspace(0,6000,10)
+        rpms = np.linspace(0,35000,10)
         Js = np.linspace(0,1.4,10)
         fig = plt.figure(figsize=plt.figaspect(1.))
         fig.suptitle(self.name)

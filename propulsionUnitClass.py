@@ -21,7 +21,7 @@ class PropulsionUnit:
         self.batt = battery
         self.esc = esc
 
-        _,_,_,self.airDensity = coesa.table(altitude)
+        _,_,_,self.airDensity = coesa.table(altitude*0.3048)
         self.airDensity = self.airDensity*0.0019403203 # Converts kg/m^3 to slug/ft^3
         
         #Initialize exterior parameters to be set later
@@ -65,8 +65,8 @@ class PropulsionUnit:
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
             if w2 < 0: # Prop angular velocity will never be negative even if windmilling
                 w2 = 0.01
-            elif w2 > 7000: # From a plot of f vs w, there is another zero above this point which does not make sense physically
-                w2 = 3000;
+            elif w2 > self.motor.Kv*self.batt.V0: #Theoretically the upper limit
+                w2 = w2/3;
 
             approxError = abs((w2 - w1)/w2)
             
@@ -74,16 +74,16 @@ class PropulsionUnit:
             f0 = f1
             w1 = w2
     
-        ##if iterations == 1000:
-        #    w = np.linspace(0,8000,1000)
-        #    f = np.zeros(1000)
-        #    for i in range(1000):
-        #        self.prop.angVel = w[i]
-        #        self.prop.CalcTorqueCoef()
-        #        f[i] = self.CalcTorque(throttle, toRPM(w[i])) - self.prop.Cl*self.airDensity*(w[i]/(2*np.pi))**2*(self.prop.diameter/12)**5
-        #    plt.plot(w,f)
-        #    plt.title("Torque Balance vs Angular Velocity")
-        #    plt.show()
+#        if iterations == 1000:
+#            w = np.linspace(0,10000,1000)
+#            f = np.zeros(1000)
+#            for i in range(1000):
+#                self.prop.angVel = w[i]
+#                self.prop.CalcTorqueCoef()
+#                f[i] = self.CalcTorque(throttle, toRPM(w[i])) - self.prop.Cl*self.airDensity*(w[i]/(2*np.pi))**2*(self.prop.diameter/12)**5
+#            plt.plot(w,f)
+#            plt.title("Torque Balance vs Angular Velocity")
+#            plt.show()
         
         self.prop.angVel = w2
         self.prop.CalcThrustCoef()
@@ -140,7 +140,6 @@ class PropulsionUnit:
         thrust = np.zeros((numVels, numThrSets))
         rpm = np.zeros((numVels,numThrSets))
         
-        plt.subplot(121)
         for i in range(numVels):
             for j in range(numThrSets):
                 
@@ -149,21 +148,24 @@ class PropulsionUnit:
                 thrust[i][j] = self.CalcCruiseThrust(vel[i], thr[j])
                 rpm[i][j] = toRPM(self.prop.angVel)
 
-            plt.plot(thr, thrust[i])
+        fig = plt.figure()
+        fig.suptitle("Components: " + str(self.prop.name) + ", " + str(self.motor.name) + ", and " + str(self.batt.name))
 
-        plt.suptitle("Components: " + str(self.prop.name) + ", " + str(self.motor.name) + ", and " + str(self.batt.name))
-        plt.title("Thrust at Various Cruise Speeds and Throttle Settings")
-        plt.ylabel("Thrust [lbf]")
-        plt.xlabel("Throttle Setting")
-        plt.legend(list(vel), title="Airspeed [ft/s]")
-
-        plt.subplot(122)
+        ax0 = fig.add_subplot(1,2,1)
         for i in range(numVels):
-            plt.plot(thr, rpm[i])
-        plt.title("Prop Speed")
-        plt.ylabel("Speed [rpms]")
-        plt.xlabel("Throttle Setting")
-        plt.show()
+            ax0.plot(thr, thrust[i])
+        ax0.set_title("Thrust")
+        ax0.set_ylabel("Thrust [lbf]")
+        ax0.set_xlabel("Throttle Setting")
+        ax0.legend(list(vel), title="Airspeed [ft/s]")
+
+        ax1 = fig.add_subplot(1,2,2)
+        for i in range(numVels):
+            ax1.plot(thr, rpm[i])
+        ax1.set_title("Prop Speed")
+        ax1.set_ylabel("Speed [rpms]")
+        ax1.set_xlabel("Throttle Setting")
+        fig.show()
 
     #Determines how long the battery will last based on a required thrust and cruise speed
     def CalcBattLife(self, cruiseSpeed, reqThrust):
@@ -173,7 +175,9 @@ class PropulsionUnit:
         #print("Throttle Setting:",throttle)
         #print("Current Draw:",self.Im)
         runTime = (self.batt.cellCap/1000)/self.Im*60 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
+        if runTime < 0:
+            return None
         return runTime
 
-    def GetWeight(self):
-        return (self.batt.weight*self.batt.n + self.motor.weight + self.esc.weight)*0.002204623 #To convert to pounds
+    def GetWeight(self):#Returns weight of electrical components in pounds
+        return (self.batt.weight*self.batt.n + self.motor.weight + self.esc.weight)/16

@@ -19,6 +19,7 @@ cursor = connection.cursor()
 cursor.execute("drop table Batteries")
 cursor.execute("""create table Batteries (id INTEGER PRIMARY KEY, 
                                       Name VARCHAR(40), 
+                                      manufacturer VARCHAR,
                                       Imax FLOAT, 
                                       Capacity FLOAT, 
                                       Weight FLOAT,
@@ -33,7 +34,7 @@ battFile = DBF(battFilePath)
 for record in battFile:
     print(record)
 
-    formatStr = """INSERT INTO Batteries (Name, Imax, Capacity, Weight, Ri, Volt, Chem) VALUES ("{battName}", {battImax}, {battCap}, {battWeight}, {battRi}, {battVolt}, "{battChem}");"""
+    formatStr = """INSERT INTO Batteries (Name, manufacturer, Imax, Capacity, Weight, Ri, Volt, Chem) VALUES ("{battName}", "{manu}", {battImax}, {battCap}, {battWeight}, {battRi}, {battVolt}, "{battChem}");"""
 
     #Check if the c rating is given and use that to define max current
     if isNum(record["CRATING"]):
@@ -57,7 +58,7 @@ for record in battFile:
     if volt is "NULL" and chem is "NULL":
         continue
 
-    command = formatStr.format(battName = record["CELLNAME"], battImax = iMax, battCap = record["CAPACITY"], battWeight = record["WEIGHT"], battRi = record["INTERTANCE"], battVolt = volt, battChem = chem)
+    command = formatStr.format(battName = record["CELLNAME"], manu = record["CELLNAME"].split(" ")[0].upper(), battImax = iMax, battCap = record["CAPACITY"], battWeight = record["WEIGHT"], battRi = record["INTERTANCE"], battVolt = volt, battChem = chem)
     print(command)
     cursor.execute(command)
 
@@ -80,7 +81,7 @@ for battery in batteries:
 
     if battery[2] == " Constant voltage":
         continue
-    formatStr = """INSERT INTO Batteries (Name, Imax, Capacity, Weight, Ri, Volt) VALUES ("{battName}", "{battImax}", "{battCap}", "{battWeight}", "{battRi}", "{battVolt}");"""
+    formatStr = """INSERT INTO Batteries (Name, manufacturer, Imax, Capacity, Weight, Ri, Volt) VALUES ("{battName}", "{manu}", {battImax}, {battCap}, {battWeight}, {battRi}, {battVolt});"""
     if isNum(battery[7]): #Must check because python will not multiply a None by a float for the unit conversion
         weight = battery[7]*0.035274
     else:
@@ -89,7 +90,7 @@ for battery in batteries:
         res = battery[8]/1000
     else:
         res = battery[8]
-    command = formatStr.format(battName = str(battery[2]), battImax = str(battery[4]), battCap = str(battery[6]), battWeight = str(weight), battRi = str(res), battVolt = str(battery[9]))
+    command = formatStr.format(battName = battery[2], manu = battery[2].split(" ")[0].upper(), battImax = battery[4], battCap = battery[6], battWeight = weight, battRi = res, battVolt = battery[9])
     cursor.execute(command)
     
 print("Reading Database after DriveCalc")
