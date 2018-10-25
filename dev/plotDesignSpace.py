@@ -11,6 +11,22 @@ import warnings
 
 dbFile = "Database/components.db"
 
+def printUnitInfo(unit):
+    print("----Propulsion Unit----")
+    print("Prop:",unit.prop.name)
+    print("Motor:",unit.motor.name)
+    print("      Kv:",unit.motor.Kv)
+    print("      I0:",unit.motor.I0)
+    print("      R:",unit.motor.R)
+    print("      weight:",unit.motor.weight)
+    print("ESC:",unit.esc.name)
+    print("      weight:",unit.esc.weight)
+    print("Battery:",unit.batt.name)
+    print("      capacity:",unit.batt.cellCap)
+    print("      cells:",unit.batt.n)
+    print("      V:",unit.batt.V0)
+    print("      weight:",unit.batt.weight)
+
 def on_pick(event):
     artist = event.artist
     xmouse,ymouse = event.mouseevent.xdata, event.mouseevent.ydata
@@ -28,7 +44,10 @@ def on_pick(event):
     ax[3].plot(selUnit.batt.V0,t_flight[ind],'o')
     ax[4].plot(selUnit.batt.cellCap,t_flight[ind],'o')
     ax[5].plot(selUnit.GetWeight()+W_frame,t_flight[ind],'o')
+    printUnitInfo(selUnit)
+    print("Flight Time:",t_flight[ind],"min")
     selUnit.PlotThrustCurves(30,11,51)
+    selUnit.prop.PlotCoefs()
 
 def setGlobalCursor():
     global dbcur
@@ -157,6 +176,14 @@ t_flight,units = map(list,zip(*data))
 t_max = max(t_flight)
 bestUnit = units[t_flight.index(t_max)]
 
+print("Maximum flight time found:",t_max,"min")
+print("Prop:",bestUnit.prop.name)
+print("Motor:",bestUnit.motor.name,"(Kv =",bestUnit.motor.Kv,")")
+print("Battery:",bestUnit.batt.name,"(Capacity =",bestUnit.batt.cellCap,", Voltage =",bestUnit.batt.V0,")")
+print("ESC:",bestUnit.esc.name)
+print("Throttle setting for max flight:",bestUnit.CalcCruiseThrottle(v_req,T_req))
+print("Current draw:",bestUnit.Im,"A")
+
 # Plot design space
 plt.ion()
 fig,((ax1,ax2,ax3),(ax4,ax5,ax6)) = plt.subplots(nrows=2,ncols=3)
@@ -194,11 +221,3 @@ ax6.set_ylabel("Flight Time [min]")
 fig.canvas.mpl_connect('pick_event',on_pick)
 plt.show(block=True)
 plt.ioff()
-
-print("Maximum flight time found:",t_max,"min")
-print("Prop:",bestUnit.prop.name)
-print("Motor:",bestUnit.motor.name,"(Kv =",bestUnit.motor.Kv,")")
-print("Battery:",bestUnit.batt.name,"(Capacity =",bestUnit.batt.cellCap,", Voltage =",bestUnit.batt.V0,")")
-print("ESC:",bestUnit.esc.name)
-print("Throttle setting for max flight:",bestUnit.CalcCruiseThrottle(v_req,T_req))
-print("Current draw:",bestUnit.Im,"A")

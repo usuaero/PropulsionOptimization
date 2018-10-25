@@ -165,7 +165,7 @@ class PropulsionUnit:
         ax1.set_title("Prop Speed")
         ax1.set_ylabel("Speed [rpms]")
         ax1.set_xlabel("Throttle Setting")
-        fig.show()
+        plt.show()
 
     #Determines how long the battery will last based on a required thrust and cruise speed
     def CalcBattLife(self, cruiseSpeed, reqThrust):
@@ -180,4 +180,4 @@ class PropulsionUnit:
         return runTime
 
     def GetWeight(self):#Returns weight of electrical components in pounds
-        return (self.batt.weight*self.batt.n + self.motor.weight + self.esc.weight)/16
+        return (self.batt.weight + self.motor.weight + self.esc.weight)/16

@@ -26,12 +26,13 @@ class Battery:
         self.cellR = float(resistance)
         self.name = name
         self.manufacturer = manu
-        self.weight = float(weight)
+        self.cellWeight = float(weight)
         self.iMax = float(maxCurr)
 
         #Members derived from inputs
         self.V0 = self.cellV * self.n
         self.R = self.cellR * self.n
+        self.weight = self.cellWeight*self.n
 
 #A class that defines an ESC (Electronic Speed Controller)
 class ESC:

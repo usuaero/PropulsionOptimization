@@ -12,7 +12,7 @@ import re
 
 ##############################################################################
 #Set this bool to determine if the SQL database will be updated or not
-updateDatabase = True
+updateDatabase = False
 ##############################################################################
 #Other parameters
 propDatabasePath = os.getcwd() + "/Props"
@@ -22,8 +22,8 @@ wholeDatabase = os.listdir(path.join(propDatabasePath))
 apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
 seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
 mixedProps = apcTestProps + seligTestProps
-problemProps = ["da4022_9x6.75","da4052_5x1.58"]
-propSet = wholeDatabase
+problemProps = ["apc_13.5x13.5"]
+propSet = problemProps
 
 thrustFitOrder = 2 #Order of polynomial fit to thrust vs advance ratio
 powerFitOrder = 2 #Order of polynomial fit to power vs advance ratio
@@ -34,7 +34,7 @@ fitOfPowerFitOrder = 1 #Order of polynomial fit to power coefs vs rpm
 thrustZeroCoefs = [] #Which polynomial fit coefficients should be set to zero for Selig's props (for fitting coefs to RPM)
 powerZeroCoefs = []
 
-showPlots = False
+showPlots = True
 ###############################################################################
 
 propCount = 0
@@ -92,6 +92,7 @@ for propFolder in propSet:
                 
         #Read through the file to get how many sets of measurements were taken
         rpmCount = 0
+        maxRPM = 30000
         advRatioCount = []
         
         for line in dataFile:
@@ -99,7 +100,7 @@ for propFolder in propSet:
             entries = line.split()
             if len(entries) != 0:
                 if entries[0] == "PROP":
-                    if float(entries[3]) > 10000.0:
+                    if float(entries[3]) > maxRPM:
                         break
                     rpmCount += 1
                     advRatioCount.append(0)
@@ -123,7 +124,7 @@ for propFolder in propSet:
             entries = line.split()
             if len(entries) != 0:
                 if entries[0] == "PROP":
-                    if float(entries[3]) > 10000.0:
+                    if float(entries[3]) > maxRPM:
                         break
                     rpmIndex += 1
                     rpms[rpmIndex] = entries[3]
