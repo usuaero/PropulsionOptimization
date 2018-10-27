@@ -12,7 +12,7 @@ import re
 
 ##############################################################################
 #Set this bool to determine if the SQL database will be updated or not
-updateDatabase = False
+updateDatabase = True
 ##############################################################################
 #Other parameters
 propDatabasePath = os.getcwd() + "/Props"
@@ -22,8 +22,8 @@ wholeDatabase = os.listdir(path.join(propDatabasePath))
 apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
 seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
 mixedProps = apcTestProps + seligTestProps
-problemProps = ["apc_13.5x13.5"]
-propSet = problemProps
+problemProps = ["apc_13.5x13.5","apc_12.5x11"]
+propSet = wholeDatabase
 
 thrustFitOrder = 2 #Order of polynomial fit to thrust vs advance ratio
 powerFitOrder = 2 #Order of polynomial fit to power vs advance ratio
@@ -34,7 +34,7 @@ fitOfPowerFitOrder = 1 #Order of polynomial fit to power coefs vs rpm
 thrustZeroCoefs = [] #Which polynomial fit coefficients should be set to zero for Selig's props (for fitting coefs to RPM)
 powerZeroCoefs = []
 
-showPlots = True
+showPlots = False
 ###############################################################################
 
 propCount = 0

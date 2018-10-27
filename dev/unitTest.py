@@ -3,14 +3,14 @@ import sqlite3 as sql
 import numpy as np
 import supportClasses as s
 
-props = ["apce_4.1x4.1","apc_10x8","apcepn_20.5x13.5","da4052_5x1.58"]
-motors = ["dys BX1306-3100","Actro 12-4","Astro Cobalt 90 11T#23 #690","Uberall NB 1608/160"]
-batteries = ["Turnigy 1000mAH 25C LiPo","Hacker TopFuel EcoX 2400mAh","SLS-APL 5000 45C","XCell 5500 (25C)"]
+props = ["apc_9x6.5"]
+motors = ["Aveox 27/13/2"]
+batteries = ["Kokam 2100SHD"]
 numCells = 3
-escs = ["Kontronic SUN 3000","Ace Smart Throttle","Astro 211","Stefan's 4-FET ESC with BEC and Brake"]
-altitude = 2000
-thrusts = [0.05,0.3,0.2,1]
-speeds = [5,15,20,15]
+escs = ["Welgard ESC 18 (default)"]
+altitude = 1000
+thrusts = [0.5]
+speeds = [0]
 
 #Open database and read records from database
 db = sql.connect("Database/components.db")
@@ -24,7 +24,7 @@ for prop, motor, battery, esc, thrust, cruiseSpeed in zip(props,motors,batteries
     dbcur.execute(command)
     propRecord = dbcur.fetchall()
     propInfo = np.asarray(propRecord[0])
-    propC = s.Propeller(propInfo[1],propInfo[2],propInfo[3],propInfo[4:])
+    propC = s.Propeller(propInfo[1],propInfo[2],propInfo[3],propInfo[4],propInfo[5:])
     propC.PlotCoefs()
 
     #Fetch motor data
@@ -34,7 +34,7 @@ for prop, motor, battery, esc, thrust, cruiseSpeed in zip(props,motors,batteries
     motorRecord = dbcur.fetchall()
     motorInfo = np.asarray(motorRecord[0])
     print(motorInfo)
-    motorC = s.Motor(motorInfo[1],motorInfo[2],motorInfo[3],motorInfo[5],motorInfo[4],motorInfo[6])
+    motorC = s.Motor(motorInfo[1],motorInfo[2],motorInfo[3],motorInfo[4],motorInfo[6],motorInfo[5],motorInfo[7])
 
     #Fetch battery data
     formatString = """select * from Batteries where Name = "{batteryName}" """
@@ -43,7 +43,7 @@ for prop, motor, battery, esc, thrust, cruiseSpeed in zip(props,motors,batteries
     batteryRecord = dbcur.fetchall()
     batteryInfo = np.asarray(batteryRecord[0])
     print(batteryInfo)
-    battC = s.Battery(batteryInfo[1], numCells, batteryInfo[3], batteryInfo[6], batteryInfo[5], batteryInfo[4],batteryInfo[2])
+    battC = s.Battery(batteryInfo[1],batteryInfo[2],numCells,batteryInfo[4],batteryInfo[7],batteryInfo[6],batteryInfo[5],batteryInfo[3])
 
     #Fetch ESC data
     formatString = """select * from ESCs where Name = "{escName}" """
@@ -52,7 +52,7 @@ for prop, motor, battery, esc, thrust, cruiseSpeed in zip(props,motors,batteries
     escRecord = dbcur.fetchall()
     escInfo = np.asarray(escRecord[0])
     print(escInfo)
-    escC = s.ESC(escInfo[1], escInfo[5], escInfo[2], escInfo[4])
+    escC = s.ESC(escInfo[1],escInfo[2],escInfo[6],escInfo[3], escInfo[5])
 
     test = unit.PropulsionUnit(propC, motorC, battC, escC, altitude)
     print("Initialization complete. Plotting thrust curves.")

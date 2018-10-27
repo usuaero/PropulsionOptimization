@@ -1,9 +1,9 @@
-import propulsionUnitClass as unit
 import matplotlib.pyplot as plt
 import sqlite3 as sql
 import supportClasses as s
 import numpy as np
-from random import randint
+from random import randint,seed
+from datetime import datetime
 import multiprocessing as mp
 import math
 import sys
@@ -114,7 +114,7 @@ def getCombination(args):
         if batt.R == 0 and esc.R == 0 and motor.R == 0:
             continue
 
-        currUnit = unit.PropulsionUnit(prop,motor,batt,esc,h)
+        currUnit = s.PropulsionUnit(prop,motor,batt,esc,h)
         if optimizeForRatio:
             T_req = (currUnit.GetWeight()+args[4])*R_tw_req
         with warnings.catch_warnings():
@@ -124,6 +124,7 @@ def getCombination(args):
 
 #----------------------BEGINNING OF COMPUTATION------------------------------------
 
+seed(datetime.now())
 v_req = None
 T_req = None
 R_tw_req = None

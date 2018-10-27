@@ -74,16 +74,22 @@ class PropulsionUnit:
             f0 = f1
             w1 = w2
     
-#        if iterations == 1000:
-#            w = np.linspace(0,10000,1000)
-#            f = np.zeros(1000)
-#            for i in range(1000):
-#                self.prop.angVel = w[i]
-#                self.prop.CalcTorqueCoef()
-#                f[i] = self.CalcTorque(throttle, toRPM(w[i])) - self.prop.Cl*self.airDensity*(w[i]/(2*np.pi))**2*(self.prop.diameter/12)**5
-#            plt.plot(w,f)
-#            plt.title("Torque Balance vs Angular Velocity")
-#            plt.show()
+        if iterations == 1000:
+            print("Problem speed:",cruiseSpeed)
+            print("Problem throttle:",throttle)
+            w = np.linspace(0,3000000,10000)
+            Tm = np.zeros(10000)
+            Tp = np.zeros(10000)
+            for i in range(1000):
+                self.prop.angVel = w[i]
+                self.prop.CalcTorqueCoef()
+                Tm[i] = self.CalcTorque(throttle, toRPM(w[i]))
+                Tp[i] = self.prop.Cl*self.airDensity*(w[i]/(2*np.pi))**2*(self.prop.diameter/12)**5
+            plt.plot(w,Tm)
+            plt.plot(w,Tp)
+            plt.plot(w,Tm-Tp)
+            plt.title("Torque Balance vs Angular Velocity")
+            plt.show()
         
         self.prop.angVel = w2
         self.prop.CalcThrustCoef()
