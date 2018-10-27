@@ -155,7 +155,7 @@ class PropulsionUnit:
         self.batt = battery
         self.esc = esc
 
-        _,_,_,self.airDensity = coesa.table(altitude*0.3048)
+        _,_,_,self.airDensity = coesa.table(altitude*0.3048) # Converts from ft to m
         self.airDensity = self.airDensity*0.0019403203 # Converts kg/m^3 to slug/ft^3
         
         #Initialize exterior parameters to be set later
@@ -164,7 +164,7 @@ class PropulsionUnit:
         self.Im = 0 #Instantaneous current being drawn through the motor
 
     #Computes motor torque (ft*lbf) given throttle setting and revolutions (rpm)
-    def CalcTorque(self, throttle, revs):
+    def CalcMotorTorque(self, throttle, revs):
         etaS = 1 - 0.078*(1 - throttle)
         self.Im = (etaS*throttle*self.batt.V0 - (self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R + self.esc.R + self.motor.R)
         # Note: the 7.0432 constant converts units [(Nm/ftlb)(min/s)(rad/rev)]^-1
@@ -173,6 +173,7 @@ class PropulsionUnit:
     #Computes thrust produced at a given cruise speed and throttle setting
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
         if cruiseSpeed == 0 and throttle == 0:
+            self.angVel = 0
             return 0 #Don't even bother
 
         self.prop.vInf = cruiseSpeed
@@ -184,7 +185,7 @@ class PropulsionUnit:
         w0 = 300 #An initial guess of the prop's angular velocity
         self.prop.angVel = w0
         self.prop.CalcTorqueCoef()
-        f0 = self.CalcTorque(throttle, toRPM(w0)) - self.prop.Cl*self.airDensity*(w0/(2*np.pi))**2*(self.prop.diameter/12)**5
+        f0 = self.CalcMotorTorque(throttle, toRPM(w0)) - self.prop.Cl*self.airDensity*(w0/(2*np.pi))**2*(self.prop.diameter/12)**5
         w1 = w0 * 1.1
         iterations = 0
         
@@ -192,7 +193,7 @@ class PropulsionUnit:
             iterations = iterations + 1
             self.prop.angVel = w1
             self.prop.CalcTorqueCoef()
-            motorTorque = self.CalcTorque(throttle, toRPM(w1))
+            motorTorque = self.CalcMotorTorque(throttle, toRPM(w1))
             propTorque = self.prop.Cl*self.airDensity*(w1/(2*np.pi))**2*(self.prop.diameter/12)**5
             f1 = motorTorque - propTorque
             
@@ -208,20 +209,25 @@ class PropulsionUnit:
             f0 = f1
             w1 = w2
     
-#        if iterations == 1000:
-#            w = np.linspace(0,10000,1000)
-#            f = np.zeros(1000)
-#            for i in range(1000):
-#                self.prop.angVel = w[i]
-#                self.prop.CalcTorqueCoef()
-#                f[i] = self.CalcTorque(throttle, toRPM(w[i])) - self.prop.Cl*self.airDensity*(w[i]/(2*np.pi))**2*(self.prop.diameter/12)**5
-#            plt.plot(w,f)
-#            plt.title("Torque Balance vs Angular Velocity")
-#            plt.show()
+        if iterations >= 1000:
+            w = np.linspace(0,50000,10000)
+            Tm = np.zeros(10000)
+            Tp = np.zeros(10000)
+            for i,wi in enumerate(w):
+                self.prop.angVel = wi
+                self.prop.CalcTorqueCoef()
+                Tm[i] = self.CalcMotorTorque(throttle, toRPM(wi))
+                Tp[i] = self.prop.Cl*self.airDensity*(wi/(2*np.pi))**2*(self.prop.diameter/12)**5
+            plt.plot(w,Tm)
+            plt.plot(w,Tp)
+            plt.plot(w,Tm-Tp)
+            plt.title("Torque Balance vs Angular Velocity")
+            plt.legend(["Motor Torque","Prop Torque","Difference"])
+            plt.show()
         
         self.prop.angVel = w2
         self.prop.CalcThrustCoef()
-        _ = self.CalcTorque(throttle, toRPM(w2)) # To make sure member variables are fully updated
+        _ = self.CalcMotorTorque(throttle, toRPM(w2)) # To make sure member variables are fully updated
 
         return self.prop.Ct*self.airDensity*(w2/(2*np.pi))**2*(self.prop.diameter/12)**4
     

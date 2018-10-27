@@ -1,4 +1,3 @@
-import propulsionUnitClass as unit
 import sqlite3 as sql
 import numpy as np
 import supportClasses as s
@@ -54,11 +53,11 @@ for prop, motor, battery, esc, thrust, cruiseSpeed in zip(props,motors,batteries
     print(escInfo)
     escC = s.ESC(escInfo[1],escInfo[2],escInfo[6],escInfo[3], escInfo[5])
 
-    test = unit.PropulsionUnit(propC, motorC, battC, escC, altitude)
+    test = s.PropulsionUnit(propC, motorC, battC, escC, altitude)
     print("Initialization complete. Plotting thrust curves.")
     maxAirspeed = 30
     numVelocities = 11
-    numThrottles = 101
+    numThrottles = 11
     test.PlotThrustCurves(maxAirspeed, numVelocities, numThrottles)
     print("Flight time (thrust=",thrust,", cruiseSpeed=",cruiseSpeed,")",test.CalcBattLife(thrust,cruiseSpeed),"min")
 
