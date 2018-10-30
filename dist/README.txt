@@ -32,15 +32,15 @@ SCRIPTS
 
 All relevant software for the user is contained in the /dist directory. The /dev directory is used for development and does not need to be accessed. An SQL database, compiled from various other databases, in contained in the /dist/Database directory. All scripts pull information from this databas. A description of all scripts in this software package is given below:
 
-ploy_fit.py
+---poly_fit.py---
 
 Contains functions for performing linear fits.
 
-supportClasses.py
+---supportClasses.py---
 
 Contains classes used by other scripts.
 
-plotDesignSpace.py
+---plotDesignSpace.py---
 
 The purpose of this script is to give the user a good idea of the design space they are working in, given a certain set of parameters. Based on these parameters, the script will determine a specified number of total propulsion units which meet these parameters. It will determine the maximum flight time achieved by each unit and plot these flight times versus the following characteristics:
 -Propeller diameter
