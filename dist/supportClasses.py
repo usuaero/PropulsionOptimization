@@ -173,6 +173,7 @@ class PropulsionUnit:
     #Computes thrust produced at a given cruise speed and throttle setting
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
         if cruiseSpeed == 0 and throttle == 0:
+            self.prop.angVel = 0
             return 0 #Don't even bother
 
         self.prop.vInf = cruiseSpeed

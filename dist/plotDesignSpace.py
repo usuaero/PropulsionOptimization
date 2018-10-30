@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 import sqlite3 as sql
 import supportClasses as s
 import numpy as np
-from random import randint,seed
-from datetime import datetime
+from random import randint
 import multiprocessing as mp
 import math
 import sys
@@ -16,16 +15,17 @@ def printUnitInfo(unit):
     print("Prop:",unit.prop.name)
     print("Motor:",unit.motor.name)
     print("      Kv:",unit.motor.Kv)
-    print("      I0:",unit.motor.I0)
-    print("      R:",unit.motor.R)
-    print("      weight:",unit.motor.weight)
+    print("      I0:",unit.motor.I0,"A")
+    print("      R:",unit.motor.R,"ohms")
+    print("      weight:",unit.motor.weight,"lb")
     print("ESC:",unit.esc.name)
-    print("      weight:",unit.esc.weight)
+    print("      weight:",unit.esc.weight,"lb")
     print("Battery:",unit.batt.name)
-    print("      capacity:",unit.batt.cellCap)
+    print("      capacity:",unit.batt.cellCap,"mAh")
     print("      cells:",unit.batt.n)
-    print("      V:",unit.batt.V0)
-    print("      weight:",unit.batt.weight)
+    print("      V:",unit.batt.V0,"V")
+    print("      weight:",unit.batt.weight,"lb")
+    print("Total weight:",unit.GetWeight()+W_frame,"lb")
 
 def on_pick(event):
     artist = event.artist
@@ -47,6 +47,7 @@ def on_pick(event):
     printUnitInfo(selUnit)
     print("Flight Time:",t_flight[ind],"min")
     selUnit.PlotThrustCurves(30,11,51)
+    selUnit.prop.PlotCoefs()
 
 def setGlobalCursor():
     global dbcur
@@ -124,7 +125,6 @@ def getCombination(args):
 
 #----------------------BEGINNING OF COMPUTATION------------------------------------
 
-seed(datetime.now())
 v_req = None
 T_req = None
 R_tw_req = None
@@ -142,6 +142,7 @@ for i,arg in enumerate(args):
         v_req = float(args[i+1])
     if "thrust" in arg:
         T_req = float(args[i+1])
+        W_frame = 0
         optimizeForRatio = False
     if "thrustToWeight" in arg:
         R_tw_req = float(args[i+1])

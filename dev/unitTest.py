@@ -2,11 +2,11 @@ import sqlite3 as sql
 import numpy as np
 import supportClasses as s
 
-props = ["apc_9x6.5","gwsdd_5x4.3","grcp_11x6"]
-motors = ["Aveox 27/13/2","137x50 11Y450 Kisscatz 9N6P jw","Neu 1521/1D"]
-batteries = ["Kokam 2100SHD","SLS-X-Treme 5000-35C (3P)","Saehan 2100-20C"]
+props = ["apcc_7.4x7.5","gwsdd_5x4.3","grcp_11x6"]
+motors = ["EMAX CF2805","137x50 11Y450 Kisscatz 9N6P jw","Neu 1521/1D"]
+batteries = ["FlightPower EVO 1800","SLS-X-Treme 5000-35C (3P)","Saehan 2100-20C"]
 numCells = 3
-escs = ["Welgard ESC 18 (default)","Aveox F5LV","Castle Phoenix 25"]
+escs = ["Rondo 400","Aveox F5LV","Castle Phoenix 25"]
 altitude = 1000
 thrusts = [0.5,0.5,0.5]
 speeds = [0,10,10]
