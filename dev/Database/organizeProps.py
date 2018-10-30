@@ -22,7 +22,7 @@ wholeDatabase = os.listdir(path.join(propDatabasePath))
 apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
 seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
 mixedProps = apcTestProps + seligTestProps
-problemProps = ["apc_13.5x13.5","apc_12.5x11","gwsdd_5x4.3"]
+problemProps = ["apcc_7.4x7.5"]
 propSet = wholeDatabase
 
 thrustFitOrder = 2 #Order of polynomial fit to thrust vs advance ratio
@@ -93,6 +93,8 @@ for propFolder in propSet:
         #Read through the file to get how many sets of measurements were taken
         rpmCount = 0
         maxRPM = 30000
+        if "apcc_7.4x7.5" in propFolder:
+            maxRPM = 15000
         advRatioCount = []
         
         for line in dataFile:

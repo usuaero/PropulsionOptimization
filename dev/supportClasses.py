@@ -216,6 +216,8 @@ class PropulsionUnit:
             w1 = w2
     
         if iterations >= 1000:
+            print(cruiseSpeed)
+            print(throttle)
             w = np.linspace(0,50000,10000)
             Tm = np.zeros(10000)
             Tp = np.zeros(10000)
