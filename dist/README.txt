@@ -6,9 +6,17 @@ As part of the Engineering Undergraduate Research Program (EURP)
 
 README (last revision: 10/25/18)
 
+--------------------------------------------------------------------
+INTRODUCTION
+--------------------------------------------------------------------
+
 The purpose of this software is to assist small UAS designers in selecting efficient and effective propulsion units (consisting of a propeller, motor, battery, and ESC) for UASs. This software includes a database of over 600 props, over 5000 motors, over 500 batteries, and over 500 ESCs, all commercially available. This software is meant to be a guide in selecting components. The results given are reasonably accurate, but approximations have to be made, especially in the modelling of propeller characteristics. The user is thus cautioned against trusting too much in the exact results of these analyses.
 
-This package consists of a number of individual Python scripts. It is assumed that the user already has Python 3 running on their machine. The software makes use of the following Python packages:
+--------------------------------------------------------------------
+PREREQUISITES
+--------------------------------------------------------------------
+
+It is assumed that the user already has Python 3 running on their machine. The software makes use of the following Python packages:
 
 numpy
 sqlite3
@@ -16,9 +24,21 @@ multiprocessing
 matplotlib
 scikit-aero
 
-Please ensure these packages are installed and functional before using this software. It is also necessary to have SQLite3 installed and added to the PATH environment variable.
+Please ensure these packages are installed and functional before using this software.
 
-A description of all scripts in this software package is given below:
+--------------------------------------------------------------------
+SCRIPTS
+--------------------------------------------------------------------
+
+All relevant software for the user is contained in the /dist directory. The /dev directory is used for development and does not need to be accessed. An SQL database, compiled from various other databases, in contained in the /dist/Database directory. All scripts pull information from this databas. A description of all scripts in this software package is given below:
+
+ploy_fit.py
+
+Contains functions for performing linear fits.
+
+supportClasses.py
+
+Contains classes used by other scripts.
 
 plotDesignSpace.py
 
@@ -38,3 +58,7 @@ $python plotDesignSpace.py units 10000 mp 8 speed 15 thrustToWeight 0.4 alt 1000
 
 PLEASE NOTE:
 Speed is specified in ft/s, thrust and weight in lbf, altitude in ft.
+
+--------------------------------------------------------------------
+KNOWN ISSUES
+--------------------------------------------------------------------

@@ -173,7 +173,7 @@ class PropulsionUnit:
     #Computes thrust produced at a given cruise speed and throttle setting
     def CalcCruiseThrust(self, cruiseSpeed, throttle):
         if cruiseSpeed == 0 and throttle == 0:
-            self.angVel = 0
+            self.prop.angVel = 0
             return 0 #Don't even bother
 
         self.prop.vInf = cruiseSpeed
@@ -199,9 +199,9 @@ class PropulsionUnit:
             
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
             if w2 < 0: # Prop angular velocity will never be negative even if windmilling
-                w2 = 0.01
-            elif w2 > self.motor.Kv*self.batt.V0: #Theoretically the upper limit
-                w2 = w2/3;
+                w2 = 0.0001
+            if w2 > self.motor.Kv*self.batt.V0: #Theoretically the upper limit
+                w2 = w2*2/3;
 
             approxError = abs((w2 - w1)/w2)
             

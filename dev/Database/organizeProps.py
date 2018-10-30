@@ -22,7 +22,7 @@ wholeDatabase = os.listdir(path.join(propDatabasePath))
 apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
 seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
 mixedProps = apcTestProps + seligTestProps
-problemProps = ["apc_13.5x13.5","apc_12.5x11"]
+problemProps = ["apc_13.5x13.5","apc_12.5x11","gwsdd_5x4.3"]
 propSet = wholeDatabase
 
 thrustFitOrder = 2 #Order of polynomial fit to thrust vs advance ratio
@@ -204,7 +204,7 @@ for propFolder in propSet:
         staticRpmCount = 0
         advRatioCount = 0
         for dataFileName in os.listdir(path.join(propFolderPath)):
-            if not ("static" in dataFileName or "geom" in dataFileName or "PER" in dataFileName):
+            if not ("static" in dataFileName or "geom" in dataFileName or "PER" in dataFileName or "spec2" in dataFileName):
                 rpmCount += 1
                 currAdvRatioCount = 0
                 dataFile = open(propFolderPath + "/" + dataFileName)
@@ -235,7 +235,7 @@ for propFolder in propSet:
         advRatioIndex = -1
         
         for dataFileName in os.listdir(path.join(propFolderPath)):
-            if not ("static" in dataFileName or "geom" in dataFileName or "PER" in dataFileName):
+            if not ("static" in dataFileName or "geom" in dataFileName or "PER" in dataFileName or "spec2" in dataFileName):
                 rpmIndex += 1
                 advRatioIndex = -1
                 dataFileNameParts = dataFileName.split("_")#Pull apart the filename to extract the rpm value

@@ -141,6 +141,7 @@ for i,arg in enumerate(args):
         v_req = float(args[i+1])
     if "thrust" in arg:
         T_req = float(args[i+1])
+        W_frame = 0
         optimizeForRatio = False
     if "thrustToWeight" in arg:
         R_tw_req = float(args[i+1])

@@ -35,7 +35,7 @@ for record in escFile:
         continue
 
     formatStr = """INSERT INTO ESCs (Name, manufacturer, Weight, Imax, Ri) VALUES ("{name}", "{manu}", {weight},  {iMax}, {Ri});"""
-    command = formatStr.format(name = record["ESCNAME"], manu = record["ESCNAME"].split(" " )[0].upper(), weight = record["WEIGHT"], iMax = record["MAXCURRENT"], Ri = record["RESISTANCE"])
+    command = formatStr.format(name = record["ESCNAME"].strip(), manu = record["ESCNAME"].split(" " )[0].upper(), weight = record["WEIGHT"], iMax = record["MAXCURRENT"], Ri = record["RESISTANCE"])
     cursor.execute(command)
 
 print("Reading Database after MotoCalc")
@@ -58,7 +58,7 @@ for esc in escs:
     if esc[4] == 0 or esc[4] == None:
         continue
     formatStr = """INSERT INTO ESCs (Name, manufacturer, Imax, Ipeak, Weight, Ri) VALUES ("{name}", "{manu}", {iMax}, {iPeak}, {weight}, {res});"""
-    command = formatStr.format(name = esc[2], manu = esc[2].split(" ")[0].upper(), iMax = esc[4], iPeak = esc[5], weight = esc[7]*0.035274, res  = esc[6])
+    command = formatStr.format(name = esc[2].strip(), manu = esc[2].split(" ")[0].upper(), iMax = esc[4], iPeak = esc[5], weight = esc[7]*0.035274, res  = esc[6])
     cursor.execute(command)
     
 print("Reading Database after DriveCalc")
