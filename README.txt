@@ -4,7 +4,7 @@ Created by Cory Goates (undergraduate, Utah State University)
 Under supervision of Dr Doug Hunsaker (professor, Utah State University; director, USU AeroLab)
 As part of the Engineering Undergraduate Research Program (EURP)
 
-README (last revision: 10/25/18)
+README (last revision: 10/31/18)
 
 --------------------------------------------------------------------
 INTRODUCTION
@@ -30,7 +30,7 @@ Please ensure these packages are installed and functional before using this soft
 SCRIPTS
 --------------------------------------------------------------------
 
-All relevant software for the user is contained in the /dist directory. The /dev directory is used for development and does not need to be accessed. An SQL database, compiled from various other databases, in contained in the /dist/Database directory. All scripts pull information from this databas. A description of all scripts in this software package is given below:
+All relevant software for the user is contained in the /PropulsionOptimization directory. The /dev directory is used for development and does not need to be accessed. An SQL database, compiled from various other databases, is contained in the /Database directory. All scripts pull information from this database. A description of all scripts in this software package is given below:
 
 ---poly_fit.py---
 
@@ -62,3 +62,6 @@ Speed is specified in ft/s, thrust and weight in lbf, altitude in ft.
 --------------------------------------------------------------------
 KNOWN ISSUES
 --------------------------------------------------------------------
+
+10/31/2018
+Due to the nature of fitting experimental data to curves, some props show erroneous results at very high and very low RPM and very low and very high advance ratio. Will be refined in the future.
