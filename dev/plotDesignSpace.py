@@ -2,11 +2,12 @@ import matplotlib.pyplot as plt
 import sqlite3 as sql
 import supportClasses as s
 import numpy as np
-from random import randint
+from random import randint,seed
 import multiprocessing as mp
 import math
 import sys
 import warnings
+from datetime import datetime
 
 dbFile = "Database/components.db"
 
@@ -17,14 +18,14 @@ def printUnitInfo(unit):
     print("      Kv:",unit.motor.Kv)
     print("      I0:",unit.motor.I0,"A")
     print("      R:",unit.motor.R,"ohms")
-    print("      weight:",unit.motor.weight,"lb")
+    print("      weight:",unit.motor.weight,"oz")
     print("ESC:",unit.esc.name)
-    print("      weight:",unit.esc.weight,"lb")
+    print("      weight:",unit.esc.weight,"oz")
     print("Battery:",unit.batt.name)
     print("      capacity:",unit.batt.cellCap,"mAh")
     print("      cells:",unit.batt.n)
     print("      V:",unit.batt.V0,"V")
-    print("      weight:",unit.batt.weight,"lb")
+    print("      weight:",unit.batt.weight,"oz")
     print("Total weight:",unit.GetWeight()+W_frame,"lb")
 
 def on_pick(event):
@@ -46,7 +47,11 @@ def on_pick(event):
     ax[5].plot(selUnit.GetWeight()+W_frame,t_flight[ind],'o')
     printUnitInfo(selUnit)
     print("Flight Time:",t_flight[ind],"min")
-    selUnit.PlotThrustCurves(30,11,51)
+    if optimizeForRatio:
+        print("    at {:4.2f}% throttle".format(selUnit.CalcCruiseThrottle(v_req,(selUnit.GetWeight()+W_frame)*R_tw_req)*100))
+    else:
+        print("    at {:4.2f}% throttle".format(selUnit.CalcCruiseThrottle(v_req,T_req)*100))
+    selUnit.PlotThrustCurves(v_req*2+10,11,51)
     selUnit.prop.PlotCoefs()
 
 def setGlobalCursor():
@@ -74,6 +79,8 @@ def getCombination(args):
     N_batt = int(dbcur.fetchall()[0][0])
     dbcur.execute("select count(*) from ESCs")
     N_escs = int(dbcur.fetchall()[0][0])
+
+    seed(datetime.now())
     
     t_flight_curr = None
     while t_flight_curr is None or math.isnan(t_flight_curr):

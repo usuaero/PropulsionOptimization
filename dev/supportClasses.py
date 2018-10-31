@@ -206,8 +206,8 @@ class PropulsionUnit:
             w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
             if w2 < 0: # Prop angular velocity will never be negative even if windmilling
                 w2 = 0.000001
-            if w2 > self.motor.Kv*self.batt.V0: #Theoretically the upper limit
-                w2 = self.motor.Kv*self.batt.V0 - 100
+            if w2 > self.motor.Kv*self.batt.V0*throttle: #Theoretically the upper limit
+                w2 = self.motor.Kv*self.batt.V0*throttle
 
             approxError = abs((w2 - w1)/w2)
             
