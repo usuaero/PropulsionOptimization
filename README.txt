@@ -64,4 +64,4 @@ KNOWN ISSUES
 --------------------------------------------------------------------
 
 10/31/2018
-Due to the nature of fitting experimental data to curves, some props show erroneous results at very high and very low RPM and very low and very high advance ratio. Will be refined in the future.
+Due to the nature of fitting experimental data to curves, some props show erroneous results at very high and very low RPM and very low and very high advance ratio. Work is being done to improve these fits to more accurately represent propeller performance.

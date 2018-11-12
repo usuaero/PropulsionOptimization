@@ -12,7 +12,7 @@ import re
 
 ##############################################################################
 #Set this bool to determine if the SQL database will be updated or not
-updateDatabase = True
+updateDatabase = False
 ##############################################################################
 #Other parameters
 propDatabasePath = os.getcwd() + "/Props"
@@ -23,18 +23,18 @@ apcTestProps = ["apc_16x10", "apce_4x3.3", "apcr-rh_9x4.5"]
 seligTestProps = ["kyosho_10x6", "ance_8.5x6", "grcp_9x4", "kavfk_11x7.75", "mit_5x4", "rusp_11x4"]
 mixedProps = apcTestProps + seligTestProps
 problemProps = ["apcc_7.4x7.5"]
-propSet = wholeDatabase
+propSet = mixedProps
 
-thrustFitOrder = 2 #Order of polynomial fit to thrust vs advance ratio
-powerFitOrder = 2 #Order of polynomial fit to power vs advance ratio
+thrustFitOrder = 5 #Order of polynomial fit to thrust vs advance ratio
+powerFitOrder = 5 #Order of polynomial fit to power vs advance ratio
 
-fitOfThrustFitOrder = 1 #Order of polynomial fit to thrust coefs vs rpm
-fitOfPowerFitOrder = 1 #Order of polynomial fit to power coefs vs rpm
+fitOfThrustFitOrder = 2 #Order of polynomial fit to thrust coefs vs rpm
+fitOfPowerFitOrder = 5 #Order of polynomial fit to power coefs vs rpm
 
 thrustZeroCoefs = [] #Which polynomial fit coefficients should be set to zero for Selig's props (for fitting coefs to RPM)
 powerZeroCoefs = []
 
-showPlots = False
+showPlots = True
 ###############################################################################
 
 propCount = 0
@@ -52,7 +52,8 @@ if updateDatabase:
                             fitOfThrustFitOrder int default {fotfo},
                             powerFitOrder int default {pfo},
                             fitOfPowerFitOrder int default {fopfo},
-                            """+thrust+" "+power+")"
+                            """+thrust+" "+power+"""
+                            J_max,N_min,N_max)"""
     createTableCommand = createTableCommand.format(tfo = str(thrustFitOrder), fotfo = str(fitOfThrustFitOrder), pfo = str(powerFitOrder), fopfo = str(fitOfPowerFitOrder))
     dbcur.execute(createTableCommand)
 
@@ -119,6 +120,7 @@ for propFolder in propSet:
         powerFitArray = np.zeros((rpmCount, powerFitOrder+1))
         propCoefArray = None
         propCoefDict = {}
+        maxJ = 0
         
         for line in dataFile:
             
@@ -139,11 +141,15 @@ for propFolder in propSet:
                     propCoefArray[advRatioIndex, 1] = entries[2] #Store efficiency
                     propCoefArray[advRatioIndex, 2] = entries[3] #Store thrust coef
                     propCoefArray[advRatioIndex, 3] = entries[4] #Store power coef
+                    if float(entries[1]) > maxJ:
+                        maxJ = float(entries[1])
                     
                     if advRatioIndex == advRatioCount[rpmIndex] - 1: #Determine polynomial fit for that rpm set
                         thrustFitArray[rpmIndex], r = fit.poly_fit(thrustFitOrder+1, propCoefArray[:,0], propCoefArray[:,2])
                         powerFitArray[rpmIndex], r = fit.poly_fit(powerFitOrder+1, propCoefArray[:,0], propCoefArray[:,3])
                         propCoefDict[rpms[rpmIndex]] = propCoefArray
+        maxN = max(rpms)
+        minN = min(rpms)
         
         dataFile.close()
         
@@ -235,6 +241,7 @@ for propFolder in propSet:
         staticArray = None
         rpmIndex = -1
         advRatioIndex = -1
+        maxJ = 0
         
         for dataFileName in os.listdir(path.join(propFolderPath)):
             if not ("static" in dataFileName or "geom" in dataFileName or "PER" in dataFileName or "spec2" in dataFileName):
@@ -252,6 +259,8 @@ for propFolder in propSet:
                     coefArray[rpmIndex, advRatioIndex, 1] = entries[3] #Store efficiency
                     coefArray[rpmIndex, advRatioIndex, 2] = entries[1] #Store thrust coef
                     coefArray[rpmIndex, advRatioIndex, 3] = entries[2] #Store power coef
+                    if float(entries[0]) > maxJ:
+                        maxJ = float(entries[0])
                     
                 dataFile.close()
             elif "static" in dataFileName: #Static tests
@@ -326,6 +335,9 @@ for propFolder in propSet:
 
         for i in range(powerFitOrder+1):
             fitOfPowerFit[i], r = fit.poly_fit(fitOfPowerFitOrder+1, rpms, powerFitArray[:,i], forcezero=powerZeroCoefs)
+        maxN = max(rpms)
+        minN = min(rpms)
+
     #-----------------------END OF SELIG/UIUC---------------------------------------------
         
     #Predict thrust and power based off of fits
@@ -363,7 +375,7 @@ for propFolder in propSet:
         ax.plot(propCoefDict[rpm][:,0], rpmExp, propCoefDict[rpm][:,2], "bo", markersize=4)
 
         a = fit.poly_func(fitOfThrustFit.T, rpm)
-        advRatioSpace = np.linspace(0, 1.8, 100)
+        advRatioSpace = np.linspace(0, propCoefDict[rpm][-1,0], 100)
         thrust = fit.poly_func(a, advRatioSpace)
         rpmTheo = np.full(len(thrust), rpm)
         ax.plot(advRatioSpace, rpmTheo, thrust, "r-")
@@ -397,7 +409,7 @@ for propFolder in propSet:
     
     for rpm in rpms:
         a = fit.poly_func(fitOfPowerFit.T, rpm)
-        advRatioSpace = np.linspace(0, 1.2, 100)
+        advRatioSpace = np.linspace(0, propCoefDict[rpm][-1,0], 100)
         power = fit.poly_func(a, advRatioSpace)
         rpmExp = np.full(len(propCoefDict[rpm][:,0]), rpm)
         rpmTheo = np.full(len(power), rpm)
@@ -431,11 +443,15 @@ for propFolder in propSet:
     if showPlots:
         plt.show()
            
+    formatString = """insert into props (Name, manufacturer, Diameter, Pitch, J_max, N_min, N_max) values ("{propName}", "{propManu}",{propDia}, {propPitch}, {J_max}, {N_min}, {N_max})"""
+    insertCommand = formatString.format(propName = propFolder, propManu = manufacturer, propDia = diameter, propPitch = pitch, J_max = maxJ, N_min = minN, N_max = maxN)
+    print(insertCommand)
+
     if updateDatabase:
     
         #Store coefficients and geometry in the components.db database
-        formatString = """insert into props (Name, manufacturer, Diameter, Pitch) values ("{propName}", "{propManu}",{propDia}, {propPitch})"""
-        insertCommand = formatString.format(propName = propFolder, propManu = manufacturer, propDia = diameter, propPitch = pitch)
+        formatString = """insert into props (Name, manufacturer, Diameter, Pitch, J_max, N_min, N_max) values ("{propName}", "{propManu}",{propDia}, {propPitch}, {J_max}, {N_min}, {N_max})"""
+        insertCommand = formatString.format(propName = propFolder, propManu = manufacturer, propDia = diameter, propPitch = pitch, J_max = maxJ, N_min = min(rpms), N_max = max(rpms))
         dbcur.execute(insertCommand)
 
         for i in range(thrustFitOrder+1):
