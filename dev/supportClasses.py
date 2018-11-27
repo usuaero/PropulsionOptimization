@@ -9,6 +9,13 @@ import polyFit as fit
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from skaero.atmosphere import coesa
+import sqlite3 as sql
+from random import randint
+
+#Classes in this file are defined such that their information is retrieved from the database (a database cursor must be given).
+#If the component's exact name or id are given, that component will be selected. If the manufacturer is given,
+#a random component from that manufacturer will be selected. If nothing is specified, a random component is selected.
+#The number of battery cells should be specified. If not, it will be randomly selected.
 
 #Converts rads per second to rpms
 def toRPM(rads):
@@ -17,76 +24,161 @@ def toRPM(rads):
 #A class that defines a battery
 class Battery:
 
-    #Initialize members from properties
-    def __init__(self, name, manu, numCells, capacity, voltage, resistance, weight, maxCurr):
+    #Initialize the class from database
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None, numCells=None):
+
+        if name is not None:
+            if manufacturer is not None or dbid is not None:
+                raise ValueError("Too many battery parameters specified.")
+            dbcur.execute("select * from Batteries where Name = '"+name+"'")
+        elif manufacturer is not None:
+            if dbid is not None:
+                raise ValueError("Too many battery parameters specified.")
+            dbcur.execute("select * from Batteries where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+        elif dbid is not None:
+            dbcur.execute("select * from Batteries where id = "+str(dbid))
+        else:
+            dbcur.execute("select * from Batteries order by RANDOM() limit 1")
+
+        record = np.asarray(dbcur.fetchall())[0]
+
+        if numCells is None:
+            numCells = randint(1,8)
 
         #Define members from inputs
         self.n = int(numCells)
-        self.cellCap = float(capacity)
-        self.cellV = float(voltage)
-        self.cellR = float(resistance)
-        self.name = name
-        self.manufacturer = manu
-        self.cellWeight = float(weight)
-        self.iMax = float(maxCurr)
+        self.cellCap = float(record[4])
+        self.cellR = float(record[6])
+        self.name = record[1]
+        self.manufacturer = record[2]
+        self.cellWeight = float(record[5])
+        self.iMax = float(record[3])
+        self.cellV = float(record[7])
 
         #Members derived from inputs
         self.V0 = self.cellV * self.n
         self.R = self.cellR * self.n
         self.weight = self.cellWeight*self.n
 
+    def printInfo(self):
+        print("Battery:",self.name)
+        print("\tManufacturer:",self.manufacturer)
+        print("\tCapacity:",self.cellCap)
+        print("\tNum Cells:",self.n)
+        print("\tVoltage:",self.V0)
+        print("\tWeight:",self.weight)
+
 #A class that defines an ESC (Electronic Speed Controller)
 class ESC:
 
-    #Initialization of the class from properties
-    def __init__(self, name, manu, resistance, iMax, weight):
+    #Initialization of the class from database
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None):
 
-        self.R = float(resistance)
-        self.name = name
-        self.manufacturer = manu
-        self.iMax = float(iMax)
-        self.weight = float(weight)
+        if name is not None:
+            if manufacturer is not None or dbid is not None:
+                raise ValueError("Too many esc parameters specified.")
+            dbcur.execute("select * from ESCs where Name = '"+name+"'")
+        elif manufacturer is not None:
+            if dbid is not None:
+                raise ValueError("Too many ESC parameters specified.")
+            dbcur.execute("select * from ESCs where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+        elif dbid is not None:
+            dbcur.execute("select * from ESCs where id = "+str(dbid))
+        else:
+            dbcur.execute("select * from ESCs order by RANDOM() limit 1")
+
+        record = np.asarray(dbcur.fetchall())[0]
+
+        self.R = float(record[6])
+        self.name = record[1]
+        self.manufacturer = record[2]
+        self.iMax = float(record[3])
+        self.weight = float(record[5])
+
+    def printInfo(self):
+        print("ESC:",self.name)
+        print("\tManufacturer:",self.manufacturer)
+        print("\tMax Current:",self.iMax)
+        print("\tWeight:",self.weight)
         
 #A class that defines an electric motor.
 class Motor:
 
-    #Initialization of the class from properties
-    def __init__(self, name, manu, Kv, gearRatio, noLoadCurrent, resistance, weight):
+    #Initialization of the class from the database
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None):
 
-        #Initialize members from constructor inputs
-        self.Kv = float(Kv)
-        self.Gr = float(gearRatio)
-        self.I0 = float(noLoadCurrent)
-        self.R = float(resistance)
-        self.name = name
-        self.manufacturer = manu
-        self.weight = float(weight)
+        if name is not None:
+            if manufacturer is not None or dbid is not None:
+                raise ValueError("Too many motor parameters specified.")
+            dbcur.execute("select * from Motors where Name = '"+name+"'")
+        elif manufacturer is not None:
+            if dbid is not None:
+                raise ValueError("Too many motor parameters specified.")
+            dbcur.execute("select * from Motors where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+        elif dbid is not None:
+            dbcur.execute("select * from Motors where id = "+str(dbid))
+        else:
+            dbcur.execute("select * from Motors order by RANDOM() limit 1")
+
+        record = np.asarray(dbcur.fetchall())[0]
+
+        self.Kv = float(record[3])
+        self.Gr = float(record[4])
+        self.I0 = float(record[6])
+        self.R = float(record[5])
+        self.name = record[1]
+        self.manufacturer = record[2]
+        self.weight = float(record[7])
+
+    def printInfo(self):
+        print("Motor:",self.name)
+        print("\tManufacturer:",self.manufacturer)
+        print("\tKv:",self.Kv)
+        print("\tWeight:",self.weight)
 
 #A class of propellers defined by database test files
 class Propeller:
     
-    #Initializes the prop from properties
-    def __init__(self, name, manu, dia, pitch, coefs):
+    #Initializes the prop from the database
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None):
 
-        self.name = name
-        self.manufacturer = manu
-        self.diameter = float(dia)
-        self.pitch = float(pitch)
-        self.thrustFitOrder = int(coefs[0])
-        self.fitOfThrustFitOrder = int(coefs[1])
-        self.powerFitOrder = int(coefs[2])
-        self.fitOfPowerFitOrder = int(coefs[3])
+        if name is not None:
+            if manufacturer is not None or dbid is not None:
+                raise ValueError("Too many prop parameters specified.")
+            dbcur.execute("select * from Props where Name = '"+name+"'")
+        elif manufacturer is not None:
+            if dbid is not None:
+                raise ValueError("Too many prop parameters specified.")
+            dbcur.execute("select * from Props where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+        elif dbid is not None:
+            dbcur.execute("select * from Props where id = "+str(dbid))
+        else:
+            dbcur.execute("select * from Props order by RANDOM() limit 1")
+
+        record = np.asarray(dbcur.fetchall())[0]
+
+        self.name = record[1]
+        self.manufacturer = record[2]
+        self.diameter = float(record[3])
+        self.pitch = float(record[4])
+        self.thrustFitOrder = int(record[5])
+        self.fitOfThrustFitOrder = int(record[6])
+        self.powerFitOrder = int(record[7])
+        self.fitOfPowerFitOrder = int(record[8])
 
         numThrustCoefs = (self.thrustFitOrder+1)*(self.fitOfThrustFitOrder+1)
-        self.thrustCoefs = coefs[4:numThrustCoefs+4].reshape((self.thrustFitOrder+1,self.fitOfThrustFitOrder+1)).astype(np.float)
-        self.powerCoefs = coefs[numThrustCoefs+4:].reshape((self.powerFitOrder+1,self.fitOfPowerFitOrder+1)).astype(np.float)
+        self.thrustCoefs = record[9:numThrustCoefs+9].reshape((self.thrustFitOrder+1,self.fitOfThrustFitOrder+1)).astype(np.float)
+        self.powerCoefs = record[numThrustCoefs+9:].reshape((self.powerFitOrder+1,self.fitOfPowerFitOrder+1)).astype(np.float)
 
         #These parameters will be set by later functions
         self.vInf = 0.0
         self.angVel = 0.0
-
-        if(False):
-            self.PlotCoefs()
+        
+    def printInfo(self):
+        print("Propeller:",self.name)
+        print("\tManufacturer:",self.manufacturer)
+        print("\tDiameter:",self.diameter)
+        print("\tPitch:",self.pitch)
 
     def CalcTorqueCoef(self):
         self.rpm = toRPM(self.angVel)
@@ -215,7 +307,7 @@ class PropulsionUnit:
             f0 = f1
             w1 = w2
     
-        if iterations >= 1000:
+        if False:#iterations >= 1000:
             print(cruiseSpeed)
             print(throttle)
             w = np.linspace(0,50000,10000)
@@ -329,3 +421,10 @@ class PropulsionUnit:
 
     def GetWeight(self):#Returns weight of electrical components in pounds
         return (self.batt.weight + self.motor.weight + self.esc.weight)/16
+
+    def printInfo(self):
+        print("----Propulsion Unit----")
+        self.prop.printInfo()
+        self.motor.printInfo()
+        self.esc.printInfo()
+        self.batt.printInfo()
