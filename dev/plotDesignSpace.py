@@ -1,3 +1,71 @@
+####################################################################
+# plotDesignSpace.py
+#
+# Randomly searches possible combinations of components and determines viable flight times.
+# Plots these flight times against component parameters. User can select specific points in
+# the design space to view component parameteres and thrust curves.
+#
+# The only argument is a .json file defining the search parameters, an example of which is
+# given below (explanatory comments given within // //):
+#
+# ----sampleSearch.json----
+#
+# {
+#     "computation":{
+#         "units":1000, //Number of propulsion units to find in the design space.//
+#         "processes":8, //Maximum number of processes to be used in parallel computation.//
+#         "outlierStdDevs":5 //Number of standard deviations of the half-normal distribution within which designs are considered feasible.//
+#     },
+#     "condition":{
+#         "altitude":0, //Flight altitude.//
+#         "airspeed":10 //Flight cruise speed.//
+#     },
+#     "goal":{ //One and only one of these parameters must be specified.//
+#         "thrust":0, //Thrust required from the propulsion unit.//
+#         "thrustToWeightRatio":0.3 //Thrust to weight ratio required (requires emptyWeight to be defined.//
+#     },
+#     "aircraft":{
+#         "emptyWeight":1, //Weight of the aircraft minus the propulsion system.//
+#         "components":{ //These parameters are optional, but only one for each component may be specified.//
+#             "propeller":{
+#                 "name":"",
+#                 "manufacturer":""
+#             },
+#             "motor":{
+#                 "name":"",
+#                 "manufacturer":""
+#             },
+#             "esc":{
+#                 "name":"",
+#                 "manufacturer":""
+#             },
+#             "battery":{
+#                 "name":"",
+#                 "manufacturer":""
+#             }
+#         }
+#     }
+# }
+#
+# The component parameters in the .json file are all optional. Specifying a component name limits
+# the search to propulsion units including that specific component. Sepcifying a component manufacturer
+# limits the search to a single manufacturer for that component. Please note that some component
+# manufacturers have very few components in our current database, and specifying this may limit the
+# search more than desirable. Only one of these parameters may be specified for each component at most.
+#
+# Once the search is complete (i.e. the specified number of designs has been considered), the propulsion
+# unit which has the longest flight time will be output to the terminal. A figure will also be displayed
+# containing 6 plots which describe (in part) the design space. Each point on a plot represents a possible
+# design; each design is reflected in each plot. The y axis of each plot is the flight time given by a
+# design, and the x axis of each plot is a defining parameter of the design (currently: prop diameter, prop
+# pitch, motor Kv constant, battery voltage, battery capacity, and total unit weight). The user may select
+# any design in any one of the plots to see a plot of its thrust at various airspeeds and throttle settings.
+# A corresponding plot of propeller speeds is also shown and all details of the design are printed to the
+# terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
+# patterns in the design space can be opserved.
+#
+####################################################################
+
 import matplotlib.pyplot as plt
 import sqlite3 as sql
 import supportClasses as s
@@ -8,24 +76,7 @@ import math
 import sys
 import warnings
 from datetime import datetime
-
-####################################################################
-# plotDesignSpace.py
-#
-# Randomly searches possible combinations of components and determines viable flight times.
-# Plots these flight times against component parameters. User can select specific points in
-# the design space to view component parameteres and thrust curves.
-#
-# Arguments:
-#
-# units (optional): the number of possible combinations to consider (10000 if not specified)
-# processes (optional): the maximum number of processes to be used (this program is run in 
-#                       parallel) (8 if not specified)
-# speed (required): desired airspeed in ft/s
-# alt (required): expected flight altitude in ft
-# thrust (required to search for a simple thrust value): desired thrust in lbf
-# thrustToWeight (required to search for a thrust to weight ratio): desired thrust to weight ratio in lbf/lbf
-# weight (required to search for a thrust to weight ratio): aircraft frame weight
+import json
 
 dbFile = "Database/components.db"
 
@@ -70,7 +121,8 @@ def getCombination(args):
     h = args[2]
     optimizeForRatio = args[3]
     W_frame = args[4]
-    manufacturers = args[5]
+    names = args[5]
+    manufacturers = args[6]
 
     if optimizeForRatio:
         R_tw_req = T
@@ -83,16 +135,16 @@ def getCombination(args):
     while t_flight_curr is None or math.isnan(t_flight_curr):
 
         #Fetch prop data
-        prop = s.Propeller(dbcur,manufacturer=manufacturers[0])
+        prop = s.Propeller(dbcur,name=names[0],manufacturer=manufacturers[0])
 
         #Fetch motor data
-        motor = s.Motor(dbcur,manufacturer=manufacturers[1])
+        motor = s.Motor(dbcur,name=names[1],manufacturer=manufacturers[1])
 
         #Fetch ESC data
-        esc = s.ESC(dbcur,manufacturer=manufacturers[2])
+        esc = s.ESC(dbcur,name=names[2],manufacturer=manufacturers[2])
 
         #Fetch battery data
-        batt = s.Battery(dbcur,manufacturer=manufacturers[3])
+        batt = s.Battery(dbcur,name=names[3],manufacturer=manufacturers[3])
 
         if batt.R == 0 and esc.R == 0 and motor.R == 0:
             continue
@@ -107,67 +159,81 @@ def getCombination(args):
 
 #----------------------BEGINNING OF COMPUTATION------------------------------------
 
-v_req = None
-T_req = None
-R_tw_req = None
-h = None
-W_frame = None
-manufacturers = [None, None, None, None]
-components = [None, None, None, None]
-N_units = 10000 #default value
-N_proc_max = 8 #default value
-args = sys.argv
-for i,arg in enumerate(args):
-    if "units" in arg:
-        N_units = int(args[i+1])
-    elif "processes" in arg:
-        N_proc_max = int(args[i+1])
-    elif "speed" in arg:
-        v_req = float(args[i+1])
-    elif "thrust" in arg:
-        T_req = float(args[i+1])
-        W_frame = 0
-        optimizeForRatio = False
-    elif "thrustToWeight" in arg:
-        R_tw_req = float(args[i+1])
-        optimizeForRatio = True
-    elif "alt" in arg:
-        h = float(args[i+1])
-    elif "weight" in arg:
-        W_frame = float(args[i+1])
-    elif "propManufacturer" in arg:
-        manufacturers[0] = args[i+1]
-    elif "motorManufacturer" in arg:
-        manufacturers[1] = args[i+1]
-    elif "escManufacturer" in arg:
-        manufacturers[2] = args[i+1]
-    elif "battManufacturer" in arg:
-        manufacturers[3] = args[i+1]
+if len(sys.argv) is not 2:
+    raise RuntimeError("plotDesignSpace takes only one argument (the .json configuration filename)!")
+configFile = sys.argv[1]
+with open(configFile) as filename:
+    settings = json.load(filename)
 
-if v_req is None or (T_req is None and R_tw_req is None) or h is None:
-    raise ValueError('One or more required parameters were not specified.')
-if optimizeForRatio and W_frame is None:
-    raise ValueError('Airframe weight not specified for thrust-to-weight analysis.')
+N_proc_max = settings["computation"]["processes"]
+N_units = settings["computation"]["units"]
+v_req = settings["condition"]["airspeed"]
+h = settings["condition"]["airspeed"]
+W_frame = settings["aircraft"]["emptyWeight"]
 
-if optimizeForRatio:
-    print("Searching the design space for a thrust-to-weight ratio of",R_tw_req,"at a speed of",v_req,"ft/s and an altitude of",h,"ft")
-    thrustParam = R_tw_req
+if settings["goal"]["thrust"] is 0:
+    if settings["goal"]["thrustToWeightRatio"] is 0:
+        raise RuntimeError("No goal specified!")
+    optimizeForRatio = True
+    thrustParam = settings["goal"]["thrustToWeightRatio"]
+    R_tw_req = thrustParam
 else:
-    print("Searching the design space for a thrust of",T_req,"lbf at a speed of",v_req,"ft/s and an altitude of",h)
-    thrustParam = T_req
+    optimizeForRatio = False
+    thrustParam = settings["goal"]["thrust"]
+    T_req = thrustParam
 
+print("Flight conditions: airspeed",v_req,"ft/s, altitude",h,"ft, airframe weight",W_frame,"lbs")
+if optimizeForRatio:
+    print("Optimizing for a thrust to weight ratio of",thrustParam)
+else:
+    print("Optimizing for a required thrust of",thrustParam)
+
+names = []
+manufacturers = []
+print("Optimization constrained as follows:")
+for component in settings["aircraft"]["components"]:
+    name = settings["aircraft"]["components"][component]["name"]
+    if len(name) is 0:
+        name = None
+    names.append(name)
+
+    manufacturer = settings["aircraft"]["components"][component]["manufacturer"]
+    if len(manufacturer) is 0:
+        manufacturer = None
+    manufacturers.append(manufacturer)
+
+    if name is not None and manufacturer is not None:
+        raise RuntimeError("Component: "+component+" is overconstrained!")
+
+    print(component.title())
+    if name is not None:
+        print("Name:",name)
+    elif manufacturer is not None:
+        print("Manufacturer:",manufacturer)
+    else:
+        print("Not constrained.")
 
 # Distribute work
 with mp.Pool(processes=N_proc_max,initializer=setGlobalCursor,initargs=()) as pool:
-    args = [(v_req,thrustParam,h,optimizeForRatio,W_frame,manufacturers) for i in range(N_units)]
+    args = [(v_req,thrustParam,h,optimizeForRatio,W_frame,names,manufacturers) for i in range(N_units)]
     data = pool.map(getCombination,args)
 sql.connect(dbFile).close()
 
-t_flight,units = map(list,zip(*data))
+t_flight,units = map(np.array,zip(*data))
+sigma_t_flight = np.sqrt(1/N_units*np.sum(t_flight))
+infeasible_ind = np.where(t_flight > sigma_t_flight*settings["computation"]["outlierStdDevs"])
+t_flight = np.delete(t_flight,infeasible_ind)
+units = np.delete(units,infeasible_ind)
+N_units = len(t_flight)
+print("Out of",settings["computation"]["units"],"designs condidered,",N_units,"are considered feasible.")
 
 # Determine optimum
 t_max = max(t_flight)
-bestUnit = units[t_flight.index(t_max)]
+bestUnit = np.asscalar(units[np.where(t_flight==t_max)])
+if optimizeForRatio:
+    T_req = thrustParam*(bestUnit.GetWeight()+W_frame)
+else:
+    T_req = thrustParam
 
 print("Maximum flight time found:",t_max,"min")
 bestUnit.printInfo()
