@@ -3,7 +3,7 @@
 #
 # Randomly searches possible combinations of components and determines viable flight times.
 # Plots these flight times against component parameters. User can select specific points in
-# the design space to view component parameteres and thrust curves.
+# the design space to view component parameters and thrust curves.
 #
 # The only argument is a .json file defining the search parameters, an example of which is
 # given below (explanatory comments given within // //):
@@ -20,7 +20,7 @@
 #         "altitude":0, //Flight altitude.//
 #         "airspeed":10 //Flight cruise speed.//
 #     },
-#     "goal":{ //One and only one of these parameters must be specified.//
+#     "goal":{ //One and only one of these parameters must be specified. Set for cruise condition.//
 #         "thrust":0, //Thrust required from the propulsion unit.//
 #         "thrustToWeightRatio":0.3 //Thrust to weight ratio required (requires emptyWeight to be defined.//
 #     },
@@ -64,6 +64,10 @@
 # terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
 # patterns in the design space can be opserved.
 #
+# The developer is of the opinion that outliers should be ignored. Testing has shown that these arise from
+# error in the component models and should not be trusted as feasible, high-performance designs. Realistic
+# designs will be found closer to the main cluster of designs.
+#
 ####################################################################
 
 import matplotlib.pyplot as plt
@@ -75,8 +79,9 @@ import multiprocessing as mp
 import math
 import sys
 import warnings
-from datetime import datetime
+import datetime
 import json
+import os
 
 dbFile = "Database/components.db"
 
@@ -84,21 +89,18 @@ dbFile = "Database/components.db"
 #plots that unit's thrust curves.
 def on_pick(event):
     artist = event.artist
-    xmouse,ymouse = event.mouseevent.xdata, event.mouseevent.ydata
-    x,y = artist.get_xdata(), artist.get_ydata()
+    fig = plt.figure(plt.get_fignums()[0])
+    ax = fig.axes
     ind = int(event.ind[0])
     selUnit = units[ind]
-
-    axClicked = event.mouseevent.inaxes
-    fig = plt.figure(plt.get_fignums()[0])
     fig.suptitle("SELECTED Prop: "+str(selUnit.prop.name)+"  Motor: "+str(selUnit.motor.name)+"  Battery: "+str(selUnit.batt.name)+"  ESC: "+str(selUnit.esc.name))
-    ax = fig.axes
     ax[0].plot(selUnit.prop.diameter,t_flight[ind],'o')
     ax[1].plot(selUnit.prop.pitch,t_flight[ind],'o')
     ax[2].plot(selUnit.motor.Kv,t_flight[ind],'o')
     ax[3].plot(selUnit.batt.V0,t_flight[ind],'o')
     ax[4].plot(selUnit.batt.cellCap,t_flight[ind],'o')
     ax[5].plot(selUnit.GetWeight()+W_frame,t_flight[ind],'o')
+    ax[6].plot(throttles[ind],t_flight[ind],'o')
     selUnit.printInfo()
     print("Flight Time:",t_flight[ind],"min")
     if optimizeForRatio:
@@ -112,6 +114,7 @@ def on_pick(event):
 def setGlobalCursor():
     global dbcur
     dbcur = sql.connect(dbFile).cursor()
+    seed(datetime.time.microsecond)
 
 #Selects a propultion unit and calculates its flight time.
 def getCombination(args):
@@ -129,8 +132,6 @@ def getCombination(args):
     else:
         T_req = T
 
-    seed(datetime.now())
-    
     t_flight_curr = None
     while t_flight_curr is None or math.isnan(t_flight_curr):
 
@@ -155,7 +156,8 @@ def getCombination(args):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             t_flight_curr = currUnit.CalcBattLife(v_req,T_req)
-    return t_flight_curr, currUnit
+            thr_curr = currUnit.CalcCruiseThrottle(v_req,T_req)
+    return t_flight_curr, thr_curr, currUnit
 
 #----------------------BEGINNING OF COMPUTATION------------------------------------
 
@@ -219,17 +221,15 @@ with mp.Pool(processes=N_proc_max,initializer=setGlobalCursor,initargs=()) as po
     data = pool.map(getCombination,args)
 sql.connect(dbFile).close()
 
-t_flight,units = map(np.array,zip(*data))
-sigma_t_flight = np.sqrt(1/N_units*np.sum(t_flight))
-infeasible_ind = np.where(t_flight > sigma_t_flight*settings["computation"]["outlierStdDevs"])
-t_flight = np.delete(t_flight,infeasible_ind)
-units = np.delete(units,infeasible_ind)
-N_units = len(t_flight)
-print("Out of",settings["computation"]["units"],"designs condidered,",N_units,"are considered feasible.")
+t_flight,throttles,units = map(list,zip(*data))
+t_flight = np.asarray(t_flight)
+throttles = np.asarray(throttles)
+units = np.asarray(units)
 
 # Determine optimum
 t_max = max(t_flight)
 bestUnit = np.asscalar(units[np.where(t_flight==t_max)])
+throttle_at_max = np.asscalar(throttles[np.where(t_flight==t_max)])
 if optimizeForRatio:
     T_req = thrustParam*(bestUnit.GetWeight()+W_frame)
 else:
@@ -242,7 +242,7 @@ print("Current draw:",bestUnit.Im,"A")
 
 # Plot design space
 plt.ion()
-fig,((ax1,ax2,ax3),(ax4,ax5,ax6)) = plt.subplots(nrows=2,ncols=3)
+fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(nrows=2,ncols=4)
 fig.suptitle("OPTIMUM Prop: "+str(bestUnit.prop.name)+"  Motor: "+str(bestUnit.motor.name)+"  Battery: "+str(bestUnit.batt.name)+"  ESC: "+str(bestUnit.esc.name))
 ax1.plot([units[i].prop.diameter for i in range(N_units)],t_flight,'b*',picker=3)
 ax1.plot(bestUnit.prop.diameter,t_max,'r*')
@@ -273,6 +273,11 @@ ax6.plot([units[i].GetWeight()+W_frame for i in range(N_units)],t_flight,'b*',pi
 ax6.plot(bestUnit.GetWeight()+W_frame,t_max,'r*')
 ax6.set_xlabel("Total Unit Weight [lb]")
 ax6.set_ylabel("Flight Time [min]")
+
+ax7.plot(throttles,t_flight,'b*',picker=3)
+ax7.plot(throttle_at_max,t_max,'r*')
+ax7.set_xlabel("Throttle Setting at Max Flight Time")
+ax7.set_ylabel("Flight Time [min]")
 
 fig.canvas.mpl_connect('pick_event',on_pick)
 plt.show(block=True)

@@ -25,21 +25,24 @@ def toRPM(rads):
 class Battery:
 
     #Initialize the class from database
-    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None, numCells=None):
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None, numCells=None, capacity=None):
 
+        command = "select * from Batteries"
         if name is not None:
             if manufacturer is not None or dbid is not None:
                 raise ValueError("Too many battery parameters specified.")
-            dbcur.execute("select * from Batteries where Name = '"+name+"'")
+            command = command+" where Name = '"+name+"'"
         elif manufacturer is not None:
             if dbid is not None:
                 raise ValueError("Too many battery parameters specified.")
-            dbcur.execute("select * from Batteries where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+            command = command+" where manufacturer = '"+manufacturer+"'"
         elif dbid is not None:
-            dbcur.execute("select * from Batteries where id = "+str(dbid))
-        else:
-            dbcur.execute("select * from Batteries order by RANDOM() limit 1")
+            command = command+" where id = "+str(dbid)
+        if capacity is not None:
+            command = command+" order by abs("+str(capacity)+"-Capacity)"
+        command = command+" order by RANDOM() limit 1"
 
+        dbcur.execute(command)
         record = np.asarray(dbcur.fetchall())[0]
 
         if numCells is None:
@@ -72,21 +75,24 @@ class Battery:
 class ESC:
 
     #Initialization of the class from database
-    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None):
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None, I_max=None):
 
+        command = "select * from ESCs"
         if name is not None:
             if manufacturer is not None or dbid is not None:
                 raise ValueError("Too many esc parameters specified.")
-            dbcur.execute("select * from ESCs where Name = '"+name+"'")
+            command = command+" where Name = '"+name+"'"
         elif manufacturer is not None:
             if dbid is not None:
                 raise ValueError("Too many ESC parameters specified.")
-            dbcur.execute("select * from ESCs where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+            command = command+" where manufacturer = '"+manufacturer+"'"
         elif dbid is not None:
-            dbcur.execute("select * from ESCs where id = "+str(dbid))
-        else:
-            dbcur.execute("select * from ESCs order by RANDOM() limit 1")
+            command = command+" where id = "+str(dbid)
+        if I_max is not None:
+            command = command+" order by abs("+str(I_max)+"-Imax)"
+        command = command+" order by RANDOM() limit 1"
 
+        dbcur.execute(command)
         record = np.asarray(dbcur.fetchall())[0]
 
         self.R = float(record[6])
@@ -105,21 +111,24 @@ class ESC:
 class Motor:
 
     #Initialization of the class from the database
-    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None):
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None, Kv=None):
 
+        command = "select * from Motors"
         if name is not None:
             if manufacturer is not None or dbid is not None:
                 raise ValueError("Too many motor parameters specified.")
-            dbcur.execute("select * from Motors where Name = '"+name+"'")
+            command = command+" where Name = '"+name+"'"
         elif manufacturer is not None:
             if dbid is not None:
                 raise ValueError("Too many motor parameters specified.")
-            dbcur.execute("select * from Motors where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+            command = command+" where manufacturer = '"+manufacturer+"'"
         elif dbid is not None:
-            dbcur.execute("select * from Motors where id = "+str(dbid))
-        else:
-            dbcur.execute("select * from Motors order by RANDOM() limit 1")
+            command = command+" where id = "+str(dbid)
+        if Kv is not None:
+            command = command+" order by abs("+str(Kv)+"-kv)"
+        command = command+" order by RANDOM() limit 1"
 
+        dbcur.execute(command)
         record = np.asarray(dbcur.fetchall())[0]
 
         self.Kv = float(record[3])
@@ -140,21 +149,26 @@ class Motor:
 class Propeller:
     
     #Initializes the prop from the database
-    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None):
+    def __init__(self, dbcur, name=None, manufacturer=None, dbid=None, diameter=None, pitch=None):
 
+        command = "select * from Props"
         if name is not None:
             if manufacturer is not None or dbid is not None:
                 raise ValueError("Too many prop parameters specified.")
-            dbcur.execute("select * from Props where Name = '"+name+"'")
+            command = command+" where Name = '"+name+"'"
         elif manufacturer is not None:
             if dbid is not None:
                 raise ValueError("Too many prop parameters specified.")
-            dbcur.execute("select * from Props where manufacturer = '"+manufacturer+"' order by RANDOM() limit 1")
+            command = command+" where manufacturer = '"+manufacturer+"'"
         elif dbid is not None:
-            dbcur.execute("select * from Props where id = "+str(dbid))
-        else:
-            dbcur.execute("select * from Props order by RANDOM() limit 1")
+            command = command+" where id = "+dbid
+        if diameter is not None:
+            command = command+" order by abs("+str(diameter)+"-Diameter)"
+        if pitch is not None:
+            command = command+" order by abs("+str(pitch)+"-Pitch)"
+        command = command+" order by RANDOM() limit 1"
 
+        dbcur.execute(command)
         record = np.asarray(dbcur.fetchall())[0]
 
         self.name = record[1]
