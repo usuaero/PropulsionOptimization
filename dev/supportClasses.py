@@ -13,9 +13,9 @@ import sqlite3 as sql
 from random import randint
 
 #Classes in this file are defined such that their information is retrieved from the database (a database cursor must be given).
-#If the component's exact name or id are given, that component will be selected. If the manufacturer is given,
-#a random component from that manufacturer will be selected. If nothing is specified, a random component is selected.
-#The number of battery cells should be specified. If not, it will be randomly selected.
+#If the component's exact name or id are given, that component w_ill be selected. If the manufacturer is given,
+#a random component from that manufacturer w_ill be selected. If nothing is specified, a random component is selected.
+#The number of battery cells should be specified. If not, it w_ill be randomly selected.
 
 #Converts rads per second to rpms
 def toRPM(rads):
@@ -89,7 +89,7 @@ class ESC:
         elif dbid is not None:
             command = command+" where id = "+str(dbid)
         if I_max is not None:
-            command = command+" order by abs("+str(I_max)+"-Imax)"
+            command = command+" order by abs("+str(I_max)+"-I_motorax)"
         command = command+" order by RANDOM() limit 1"
 
         dbcur.execute(command)
@@ -184,8 +184,8 @@ class Propeller:
         self.thrustCoefs = record[9:numThrustCoefs+9].reshape((self.thrustFitOrder+1,self.fitOfThrustFitOrder+1)).astype(np.float)
         self.powerCoefs = record[numThrustCoefs+9:].reshape((self.powerFitOrder+1,self.fitOfPowerFitOrder+1)).astype(np.float)
 
-        #These parameters will be set by later functions
-        self.vInf = 0.0
+        #These parameters w_ill be set by later functions
+        self.v_inf = 0.0
         self.angVel = 0.0
         
     def printInfo(self):
@@ -198,9 +198,9 @@ class Propeller:
         self.rpm = toRPM(self.angVel)
         self.rps = self.rpm/60
         if abs(self.rps)<1e-10:
-            self.J = 10000 #To prevent errors. Since angular velocity is 0, actual value will also be 0.
+            self.J = 10000 #To prevent errors. Since angular velocity is 0, actual value w_ill also be 0.
         else:
-            self.J = self.vInf/(self.rps*self.diameter/12)
+            self.J = self.v_inf/(self.rps*self.diameter/12)
         a = fit.poly_func(self.powerCoefs.T, self.rpm)
         if(a[-1]>0):#Quadratic coefficient should always be non-positive
             a[-1] = 0
@@ -211,9 +211,9 @@ class Propeller:
         self.rpm = toRPM(self.angVel)
         self.rps = self.rpm/60
         if abs(self.rps)<1e-10:
-            self.J = 10000 #To prevent errors. Since angular velocity is 0, actual value will also be 0.
+            self.J = 10000 #To prevent errors. Since angular velocity is 0, actual value w_ill also be 0.
         else:
-            self.J = self.vInf/(self.rps*self.diameter/12)
+            self.J = self.v_inf/(self.rps*self.diameter/12)
         a = fit.poly_func(self.thrustCoefs.T, self.rpm)
         if(a[-1]>0):#Quadratic coefficient should always be non-positive
             a[-1] = 0
@@ -267,129 +267,124 @@ class PropulsionUnit:
         self.batt = battery
         self.esc = esc
 
-        _,_,_,self.airDensity = coesa.table(altitude*0.3048) # Converts from ft to m
-        self.airDensity = self.airDensity*0.0019403203 # Converts kg/m^3 to slug/ft^3
+        self.airDensity = coesa.table(altitude*0.3048)[3]*0.0019403203 # Converts kg/m^3 to slug/ft^3
         
         #Initialize exterior parameters to be set later
-        self.prop.vInf = 0
+        self.prop.v_inf = 0
         self.prop.angVel = 0
-        self.Im = 0 #Instantaneous current being drawn through the motor
+        self.I_motor = 0 #Instantaneous current being drawn through the motor
 
     #Computes motor torque (ft*lbf) given throttle setting and revolutions (rpm)
     def CalcMotorTorque(self, throttle, revs):
         etaS = 1 - 0.078*(1 - throttle)
-        self.Im = (etaS*throttle*self.batt.V0 - (self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R + self.esc.R + self.motor.R)
+        self.I_motor = (etaS*throttle*self.batt.V0 - (self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R + self.esc.R + self.motor.R)
         # Note: the 7.0432 constant converts units [(Nm/ftlb)(min/s)(rad/rev)]^-1
-        return 7.0432*self.motor.Gr/self.motor.Kv * (self.Im - self.motor.I0)
+        return 7.0432*self.motor.Gr/self.motor.Kv * (self.I_motor - self.motor.I0)
     
     #Computes thrust produced at a given cruise speed and throttle setting
-    def CalcCruiseThrust(self, cruiseSpeed, throttle):
-        if cruiseSpeed == 0 and throttle == 0:
+    def CalcCruiseThrust(self, v_cruise, throttle):
+        if v_cruise == 0 and throttle == 0:
             self.prop.angVel = 0
             return 0 #Don't even bother
 
-        self.prop.vInf = cruiseSpeed
+        self.prop.v_inf = v_cruise
 
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
         #Uses a secant method
-        errorBound = 0.000001
-        approxError = 1 + errorBound #So that it executes at least once
-        w0 = 300 #An initial guess of the prop's angular velocity
-        self.prop.angVel = w0
+        err_max = 0.000001
+        err_aprx = 1 + err_max #So that it executes at least once
+        w_0 = 950 #An initial guess of the prop's angular velocity
+        w_max = self.motor.Kv*self.batt.V0*throttle*(2*np.pi/60) # Theoretically the upper limit
+        self.prop.angVel = w_0
         self.prop.CalcTorqueCoef()
-        f0 = self.CalcMotorTorque(throttle, toRPM(w0)) - self.prop.Cl*self.airDensity*(w0/(2*np.pi))**2*(self.prop.diameter/12)**5
-        w1 = w0 * 1.1
+        f_0 = self.CalcMotorTorque(throttle, toRPM(w_0)) - self.prop.Cl*self.airDensity*(w_0/(2*np.pi))**2*(self.prop.diameter/12)**5
+        w_1 = w_0 * 1.1
         iterations = 0
         
-        while approxError >= errorBound and iterations < 1000:
+        while err_aprx >= err_max and iterations < 1000:
             iterations = iterations + 1
-            self.prop.angVel = w1
+            self.prop.angVel = w_1
             self.prop.CalcTorqueCoef()
-            motorTorque = self.CalcMotorTorque(throttle, toRPM(w1))
-            propTorque = self.prop.Cl*self.airDensity*(w1/(2*np.pi))**2*(self.prop.diameter/12)**5
-            f1 = motorTorque - propTorque
+            T_motor = self.CalcMotorTorque(throttle, toRPM(w_1))
+            T_prop = self.prop.Cl*self.airDensity*(w_1/(2*np.pi))**2*(self.prop.diameter/12)**5
+            f_1 = T_motor - T_prop
             
-            w2 = w1 - (f1*(w0 - w1))/(f0 - f1)
-            if w2 < 0: # Prop angular velocity will never be negative even if windmilling
-                w2 = 0.000001
-            if w2 > self.motor.Kv*self.batt.V0*throttle: #Theoretically the upper limit
-                w2 = self.motor.Kv*self.batt.V0*throttle
+            w_2 = w_1 - (f_1*(w_0 - w_1))/(f_0 - f_1)
+            if w_2 < 0: # Prop angular velocity will never be negative even if windmilling
+                w_2 = 0.00001
 
-            approxError = abs((w2 - w1)/w2)
+            err_aprx = abs((w_2 - w_1)/w_2)
             
-            w0 = w1
-            f0 = f1
-            w1 = w2
+            w_0 = w_1
+            f_0 = f_1
+            w_1 = w_2
     
-        if False:#iterations >= 1000:
-            print(cruiseSpeed)
-            print(throttle)
-            w = np.linspace(0,50000,10000)
-            Tm = np.zeros(10000)
-            Tp = np.zeros(10000)
-            for i,wi in enumerate(w):
-                self.prop.angVel = wi
+        if False: #iterations >= 1000:
+            w = np.linspace(0,30000,10000)
+            T_motor = np.zeros(10000)
+            T_prop = np.zeros(10000)
+            for i,w_i in enumerate(w):
+                self.prop.angVel = w_i
                 self.prop.CalcTorqueCoef()
-                Tm[i] = self.CalcMotorTorque(throttle, toRPM(wi))
-                Tp[i] = self.prop.Cl*self.airDensity*(wi/(2*np.pi))**2*(self.prop.diameter/12)**5
-            plt.plot(w,Tm)
-            plt.plot(w,Tp)
-            plt.plot(w,Tm-Tp)
-            plt.title("Torque Balance vs Angular Velocity")
-            plt.legend(["Motor Torque","Prop Torque","Difference"])
+                T_motor[i] = self.CalcMotorTorque(throttle, toRPM(w_i))
+                T_prop[i] = self.prop.Cl*self.airDensity*(w_i/(2*np.pi))**2*(self.prop.diameter/12)**5
+            plt.plot(w,T_motor)
+            plt.plot(w,T_prop)
+            plt.title("Torques vs Angular Velocity")
+            plt.legend(["Motor Torque","Prop Torque"])
             plt.show()
         
-        self.prop.angVel = w2
+        self.prop.angVel = w_2
         self.prop.CalcThrustCoef()
-        _ = self.CalcMotorTorque(throttle, toRPM(w2)) # To make sure member variables are fully updated
+        _ = self.CalcMotorTorque(throttle, toRPM(w_2)) # To make sure member variables are fully updated
 
-        return self.prop.Ct*self.airDensity*(w2/(2*np.pi))**2*(self.prop.diameter/12)**4
+        return self.prop.Ct*self.airDensity*(w_2/(2*np.pi))**2*(self.prop.diameter/12)**4
     
     #Computes required throttle setting for a given thrust and cruise speed
-    def CalcCruiseThrottle(self, cruiseSpeed, reqThrust):
+    def CalcCruiseThrottle(self, v_cruise, T_req):
         #Uses a secant method
-        errorBound = 0.000001
-        approxError = 1 + errorBound
-        t0 = 0.5
-        T0 = self.CalcCruiseThrust(cruiseSpeed, t0)
-        t1 = t0*1.1
+        err_max = 0.000001
+        err_aprx = 1 + err_max
+        t_0 = 0.5
+        T_0 = self.CalcCruiseThrust(v_cruise, t_0)
+        t_1 = t_0*1.1
         iterations = 0
         
-        while approxError >= errorBound and iterations < 1000:
+        while err_aprx >= err_max and iterations < 1000:
             
             iterations = iterations + 1
-            T1 = self.CalcCruiseThrust(cruiseSpeed, t1) - reqThrust
+            T_1 = self.CalcCruiseThrust(v_cruise, t_1) - T_req
             
-            t2 = t1 - (T1*(t0 - t1))/(T0 - T1)
+            t_2 = t_1 - (T_1*(t_0 - t_1))/(T_0 - T_1)
             
-            approxError = abs((t2 - t1)/t2)
+            err_aprx = abs((t_2 - t_1)/t_2)
             
-            if t2 > 10:
-                t2 = 1.1
-            elif t2 < -10:
-                t2 = -0.1
-            t0 = t1
-            T0 = T1
-            t1 = t2
+            if t_2 > 10:
+                t_2 = 1.1
+            elif t_2 < -10:
+                t_2 = -0.1
+            t_0 = t_1
+            T_0 = T_1
+            t_1 = t_2
 
         #if iterations == 1000:
         #    t = np.linspace(0,1.0,100)
         #    T = np.zeros(100)
         #    for i in range(100):
-        #        T[i] = self.CalcCruiseThrust(cruiseSpeed, t[i]) - reqThrust
+        #        T[i] = self.CalcCruiseThrust(v_cruise, t[i]) - T_req
         #    plt.plot(t,T) 
         #    plt.show()
 
-        if t2 > 1 or t2 < 0:
+        if t_2 > 1 or t_2 < 0:
             return None
         
-        self.CalcCruiseThrust(cruiseSpeed,t2) # To make sure member variables are fully updated
-        return t2
+        self.CalcCruiseThrust(v_cruise,t_2) # To make sure member variables are fully updated
+        return t_2
         
     #Plots thrust curves for propulsion unit up to a specified airspeed
-    def PlotThrustCurves(self, maxAirspeed, numVels, numThrSets):
+    def PlotThrustCurves(self, v_min, v_max, numVels, numThrSets):
         
-        vel = np.linspace(0, maxAirspeed, numVels)
+        vel = np.linspace(v_min, v_max, numVels)
         thr = np.linspace(0, 1, numThrSets)
         thrust = np.zeros((numVels, numThrSets))
         rpm = np.zeros((numVels,numThrSets))
@@ -421,14 +416,14 @@ class PropulsionUnit:
         ax1.set_xlabel("Throttle Setting")
         plt.show()
 
-    #Determines how long the battery will last based on a required thrust and cruise speed
-    def CalcBattLife(self, cruiseSpeed, reqThrust):
-        throttle = self.CalcCruiseThrottle(cruiseSpeed, reqThrust)
-        if(throttle==None or self.Im > self.esc.iMax or self.Im > self.batt.iMax):
+    #Determines how long the battery w_ill last based on a required thrust and cruise speed
+    def CalcBattLife(self, v_cruise, T_req):
+        throttle = self.CalcCruiseThrottle(v_cruise, T_req)
+        if(throttle==None or self.I_motor > self.esc.iMax or self.I_motor > self.batt.iMax):
             return None
         #print("Throttle Setting:",throttle)
-        #print("Current Draw:",self.Im)
-        runTime = (self.batt.cellCap/1000)/self.Im*60 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
+        #print("Current Draw:",self.I_motor)
+        runTime = (self.batt.cellCap/1000)/self.I_motor*60 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
         if runTime < 0:
             return None
         return runTime

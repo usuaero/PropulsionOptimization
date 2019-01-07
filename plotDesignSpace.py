@@ -1,3 +1,75 @@
+####################################################################
+# plotDesignSpace.py
+#
+# Randomly searches possible combinations of components and determines viable flight times.
+# Plots these flight times against component parameters. User can select specific points in
+# the design space to view component parameters and thrust curves.
+#
+# The only argument is a .json file defining the search parameters, an example of which is
+# given below (explanatory comments given within // //):
+#
+# ----sampleSearch.json----
+#
+# {
+#     "computation":{
+#         "units":1000, //Number of propulsion units to find in the design space.//
+#         "processes":8, //Maximum number of processes to be used in parallel computation.//
+#         "outlierStdDevs":5 //Number of standard deviations of the half-normal distribution within which designs are considered feasible.//
+#     },
+#     "condition":{
+#         "altitude":0, //Flight altitude.//
+#         "airspeed":10 //Flight cruise speed.//
+#     },
+#     "goal":{ //One and only one of these parameters must be specified. Set for cruise condition.//
+#         "thrust":0, //Thrust required from the propulsion unit.//
+#         "thrustToWeightRatio":0.3 //Thrust to weight ratio required (requires emptyWeight to be defined.//
+#     },
+#     "aircraft":{
+#         "emptyWeight":1, //Weight of the aircraft minus the propulsion system.//
+#         "components":{ //These parameters are optional, but only one for each component may be specified.//
+#             "propeller":{
+#                 "name":"",
+#                 "manufacturer":""
+#             },
+#             "motor":{
+#                 "name":"",
+#                 "manufacturer":""
+#             },
+#             "esc":{
+#                 "name":"",
+#                 "manufacturer":""
+#             },
+#             "battery":{
+#                 "name":"",
+#                 "manufacturer":""
+#             }
+#         }
+#     }
+# }
+#
+# The component parameters in the .json file are all optional. Specifying a component name limits
+# the search to propulsion units including that specific component. Sepcifying a component manufacturer
+# limits the search to a single manufacturer for that component. Please note that some component
+# manufacturers have very few components in our current database, and specifying this may limit the
+# search more than desirable. Only one of these parameters may be specified for each component at most.
+#
+# Once the search is complete (i.e. the specified number of designs has been considered), the propulsion
+# unit which has the longest flight time will be output to the terminal. A figure will also be displayed
+# containing 6 plots which describe (in part) the design space. Each point on a plot represents a possible
+# design; each design is reflected in each plot. The y axis of each plot is the flight time given by a
+# design, and the x axis of each plot is a defining parameter of the design (currently: prop diameter, prop
+# pitch, motor Kv constant, battery voltage, battery capacity, and total unit weight). The user may select
+# any design in any one of the plots to see a plot of its thrust at various airspeeds and throttle settings.
+# A corresponding plot of propeller speeds is also shown and all details of the design are printed to the
+# terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
+# patterns in the design space can be opserved.
+#
+# The developer is of the opinion that outliers should be ignored. Testing has shown that these arise from
+# error in the component models and should not be trusted as feasible, high-performance designs. Realistic
+# designs will be found closer to the main cluster of designs.
+#
+####################################################################
+
 import matplotlib.pyplot as plt
 import sqlite3 as sql
 import supportClasses as s
@@ -7,193 +79,170 @@ import multiprocessing as mp
 import math
 import sys
 import warnings
-from datetime import datetime
+import datetime
+import json
+import os
 
 dbFile = "Database/components.db"
 
-def printUnitInfo(unit):
-    print("----Propulsion Unit----")
-    print("Prop:",unit.prop.name)
-    print("Motor:",unit.motor.name)
-    print("      Kv:",unit.motor.Kv)
-    print("      I0:",unit.motor.I0,"A")
-    print("      R:",unit.motor.R,"ohms")
-    print("      weight:",unit.motor.weight,"oz")
-    print("ESC:",unit.esc.name)
-    print("      weight:",unit.esc.weight,"oz")
-    print("Battery:",unit.batt.name)
-    print("      capacity:",unit.batt.cellCap,"mAh")
-    print("      cells:",unit.batt.n)
-    print("      V:",unit.batt.V0,"V")
-    print("      weight:",unit.batt.weight,"oz")
-    print("Total weight:",unit.GetWeight()+W_frame,"lb")
-
+#Defines what happens when the user picks a plotted point in the design space. Highlights that point and 
+#plots that unit's thrust curves.
 def on_pick(event):
     artist = event.artist
-    xmouse,ymouse = event.mouseevent.xdata, event.mouseevent.ydata
-    x,y = artist.get_xdata(), artist.get_ydata()
+    fig = plt.figure(plt.get_fignums()[0])
+    ax = fig.axes
     ind = int(event.ind[0])
     selUnit = units[ind]
-
-    axClicked = event.mouseevent.inaxes
-    fig = plt.figure(plt.get_fignums()[0])
-    fig.suptitle("SELCTED Prop: "+str(selUnit.prop.name)+"  Motor: "+str(selUnit.motor.name)+"  Battery: "+str(selUnit.batt.name)+"  ESC: "+str(selUnit.esc.name))
-    ax = fig.axes
+    fig.suptitle("SELECTED Prop: "+str(selUnit.prop.name)+"  Motor: "+str(selUnit.motor.name)+"  Battery: "+str(selUnit.batt.name)+"  ESC: "+str(selUnit.esc.name))
     ax[0].plot(selUnit.prop.diameter,t_flight[ind],'o')
     ax[1].plot(selUnit.prop.pitch,t_flight[ind],'o')
     ax[2].plot(selUnit.motor.Kv,t_flight[ind],'o')
     ax[3].plot(selUnit.batt.V0,t_flight[ind],'o')
     ax[4].plot(selUnit.batt.cellCap,t_flight[ind],'o')
     ax[5].plot(selUnit.GetWeight()+W_frame,t_flight[ind],'o')
-    printUnitInfo(selUnit)
+    ax[6].plot(throttles[ind],t_flight[ind],'o')
+    selUnit.printInfo()
     print("Flight Time:",t_flight[ind],"min")
     if optimizeForRatio:
         print("    at {:4.2f}% throttle".format(selUnit.CalcCruiseThrottle(v_req,(selUnit.GetWeight()+W_frame)*R_tw_req)*100))
     else:
         print("    at {:4.2f}% throttle".format(selUnit.CalcCruiseThrottle(v_req,T_req)*100))
-    selUnit.PlotThrustCurves(v_req*2+10,11,51)
+    selUnit.PlotThrustCurves(0,v_req*2+10,11,51)
+    selUnit.prop.PlotCoefs()
 
+#Defines a global database cursor giving all processes a connection to the database.
 def setGlobalCursor():
     global dbcur
     dbcur = sql.connect(dbFile).cursor()
+    seed(datetime.time.microsecond)
 
+#Selects a propultion unit and calculates its flight time.
 def getCombination(args):
 
     v_req = args[0]
     T = args[1]
     h = args[2]
     optimizeForRatio = args[3]
+    W_frame = args[4]
+    names = args[5]
+    manufacturers = args[6]
 
     if optimizeForRatio:
         R_tw_req = T
     else:
         T_req = T
 
-    # Get numbers of components from database
-    dbcur.execute("select count(*) from Props")
-    N_props = int(dbcur.fetchall()[0][0])
-    dbcur.execute("select count(*) from Motors")
-    N_motors = int(dbcur.fetchall()[0][0])
-    dbcur.execute("select count(*) from Batteries")
-    N_batt = int(dbcur.fetchall()[0][0])
-    dbcur.execute("select count(*) from ESCs")
-    N_escs = int(dbcur.fetchall()[0][0])
-
-    seed(datetime.now())
-    
     t_flight_curr = None
     while t_flight_curr is None or math.isnan(t_flight_curr):
 
-        propID = randint(1,N_props)
-        motorID = randint(1,N_motors)
-        battID = randint(1,N_batt)
-        numCells = randint(2,5)
-        escID = randint(1,N_escs)
-
         #Fetch prop data
-        formatString = """select * from Props where id = {ID}"""
-        command = formatString.format(ID = propID)
-        results = dbcur.execute(command)
-        propInfo = np.asarray(results.fetchone()).flatten()
-        prop = s.Propeller(propInfo[1],propInfo[2],propInfo[3],propInfo[4],propInfo[5:])
+        prop = s.Propeller(dbcur,name=names[0],manufacturer=manufacturers[0])
 
         #Fetch motor data
-        formatString = """select * from Motors where id = {ID}"""
-        command = formatString.format(ID = motorID)
-        results = dbcur.execute(command)
-        motorInfo = np.asarray(results.fetchone()).flatten()
-        motor = s.Motor(motorInfo[1],motorInfo[2],motorInfo[3],motorInfo[4],motorInfo[6],motorInfo[5],motorInfo[7])
+        motor = s.Motor(dbcur,name=names[1],manufacturer=manufacturers[1])
 
         #Fetch ESC data
-        formatString = """select * from ESCs where id = {ID}"""
-        command = formatString.format(ID = escID)
-        results = dbcur.execute(command)
-        escInfo = np.asarray(results.fetchone()).flatten()
-        esc = s.ESC(escInfo[1],escInfo[2],escInfo[6],escInfo[3], escInfo[5])
+        esc = s.ESC(dbcur,name=names[2],manufacturer=manufacturers[2])
 
         #Fetch battery data
-        formatString = """select * from Batteries where id = {ID}"""
-        command = formatString.format(ID = battID)
-        results = dbcur.execute(command)
-        batteryInfo = np.asarray(results.fetchone()).flatten()
-        batt = s.Battery(batteryInfo[1],batteryInfo[2],numCells,batteryInfo[4],batteryInfo[7],batteryInfo[6],batteryInfo[5],batteryInfo[3])
+        batt = s.Battery(dbcur,name=names[3],manufacturer=manufacturers[3])
 
         if batt.R == 0 and esc.R == 0 and motor.R == 0:
             continue
 
         currUnit = s.PropulsionUnit(prop,motor,batt,esc,h)
         if optimizeForRatio:
-            T_req = (currUnit.GetWeight()+args[4])*R_tw_req
+            T_req = (currUnit.GetWeight()+W_frame)*R_tw_req
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             t_flight_curr = currUnit.CalcBattLife(v_req,T_req)
-    return t_flight_curr, currUnit
+            thr_curr = currUnit.CalcCruiseThrottle(v_req,T_req)
+    return t_flight_curr, thr_curr, currUnit
 
 #----------------------BEGINNING OF COMPUTATION------------------------------------
 
-v_req = None
-T_req = None
-R_tw_req = None
-h = None
-W_frame = None
-N_units = 10000 #default value
-N_proc_max = 8 #default value
-args = sys.argv
-for i,arg in enumerate(args):
-    if "units" in arg:
-        N_units = int(args[i+1])
-    if "mp" in arg:
-        N_proc_max = int(args[i+1])
-    if "speed" in arg:
-        v_req = float(args[i+1])
-    if "thrust" in arg:
-        T_req = float(args[i+1])
-        W_frame = 0
-        optimizeForRatio = False
-    if "thrustToWeight" in arg:
-        R_tw_req = float(args[i+1])
-        optimizeForRatio = True
-    if "alt" in arg:
-        h = float(args[i+1])
-    if "weight" in arg:
-        W_frame = float(args[i+1])
+if len(sys.argv) is not 2:
+    raise RuntimeError("plotDesignSpace takes only one argument (the .json configuration filename)!")
+configFile = sys.argv[1]
+with open(configFile) as filename:
+    settings = json.load(filename)
 
-if v_req is None or (T_req is None and R_tw_req is None) or h is None:
-    raise ValueError('One or more required parameters were not specified')
-if optimizeForRatio and W_frame is None:
-    raise ValueError('Airframe weight not specified for thrust-to-weight analysis')
+N_proc_max = settings["computation"]["processes"]
+N_units = settings["computation"]["units"]
+v_req = settings["condition"]["airspeed"]
+h = settings["condition"]["airspeed"]
+W_frame = settings["aircraft"]["emptyWeight"]
 
-if optimizeForRatio:
-    print("Optimizing for a thrust-to-weight ratio of",R_tw_req,"at a speed of",v_req,"ft/s and an altitude of",h,"ft")
-    thrustParam = R_tw_req
+if settings["goal"]["thrust"] is 0:
+    if settings["goal"]["thrustToWeightRatio"] is 0:
+        raise RuntimeError("No goal specified!")
+    optimizeForRatio = True
+    thrustParam = settings["goal"]["thrustToWeightRatio"]
+    R_tw_req = thrustParam
 else:
-    print("Optimizing for a thrust of",T_req,"lbf at a speed of",v_req,"ft/s and an altitude of",h)
-    thrustParam = T_req
+    optimizeForRatio = False
+    thrustParam = settings["goal"]["thrust"]
+    T_req = thrustParam
 
+print("Flight conditions: airspeed",v_req,"ft/s, altitude",h,"ft, airframe weight",W_frame,"lbs")
+if optimizeForRatio:
+    print("Optimizing for a thrust to weight ratio of",thrustParam)
+else:
+    print("Optimizing for a required thrust of",thrustParam)
+
+names = []
+manufacturers = []
+print("Optimization constrained as follows:")
+for component in settings["aircraft"]["components"]:
+    name = settings["aircraft"]["components"][component]["name"]
+    if len(name) is 0:
+        name = None
+    names.append(name)
+
+    manufacturer = settings["aircraft"]["components"][component]["manufacturer"]
+    if len(manufacturer) is 0:
+        manufacturer = None
+    manufacturers.append(manufacturer)
+
+    if name is not None and manufacturer is not None:
+        raise RuntimeError("Component: "+component+" is overconstrained!")
+
+    print(component.title())
+    if name is not None:
+        print("Name:",name)
+    elif manufacturer is not None:
+        print("Manufacturer:",manufacturer)
+    else:
+        print("Not constrained.")
 
 # Distribute work
 with mp.Pool(processes=N_proc_max,initializer=setGlobalCursor,initargs=()) as pool:
-    args = [(v_req,thrustParam,h,optimizeForRatio,W_frame) for i in range(N_units)]
+    args = [(v_req,thrustParam,h,optimizeForRatio,W_frame,names,manufacturers) for i in range(N_units)]
     data = pool.map(getCombination,args)
 sql.connect(dbFile).close()
 
-t_flight,units = map(list,zip(*data))
+t_flight,throttles,units = map(list,zip(*data))
+t_flight = np.asarray(t_flight)
+throttles = np.asarray(throttles)
+units = np.asarray(units)
 
 # Determine optimum
 t_max = max(t_flight)
-bestUnit = units[t_flight.index(t_max)]
+bestUnit = np.asscalar(units[np.where(t_flight==t_max)])
+throttle_at_max = np.asscalar(throttles[np.where(t_flight==t_max)])
+if optimizeForRatio:
+    T_req = thrustParam*(bestUnit.GetWeight()+W_frame)
+else:
+    T_req = thrustParam
 
 print("Maximum flight time found:",t_max,"min")
-print("Prop:",bestUnit.prop.name)
-print("Motor:",bestUnit.motor.name,"(Kv =",bestUnit.motor.Kv,")")
-print("Battery:",bestUnit.batt.name,"(Capacity =",bestUnit.batt.cellCap,", Voltage =",bestUnit.batt.V0,")")
-print("ESC:",bestUnit.esc.name)
+bestUnit.printInfo()
 print("Throttle setting for max flight:",bestUnit.CalcCruiseThrottle(v_req,T_req))
-print("Current draw:",bestUnit.Im,"A")
+print("Current draw:",bestUnit.I_motor,"A")
 
 # Plot design space
 plt.ion()
-fig,((ax1,ax2,ax3),(ax4,ax5,ax6)) = plt.subplots(nrows=2,ncols=3)
+fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(nrows=2,ncols=4)
 fig.suptitle("OPTIMUM Prop: "+str(bestUnit.prop.name)+"  Motor: "+str(bestUnit.motor.name)+"  Battery: "+str(bestUnit.batt.name)+"  ESC: "+str(bestUnit.esc.name))
 ax1.plot([units[i].prop.diameter for i in range(N_units)],t_flight,'b*',picker=3)
 ax1.plot(bestUnit.prop.diameter,t_max,'r*')
@@ -224,6 +273,11 @@ ax6.plot([units[i].GetWeight()+W_frame for i in range(N_units)],t_flight,'b*',pi
 ax6.plot(bestUnit.GetWeight()+W_frame,t_max,'r*')
 ax6.set_xlabel("Total Unit Weight [lb]")
 ax6.set_ylabel("Flight Time [min]")
+
+ax7.plot(throttles,t_flight,'b*',picker=3)
+ax7.plot(throttle_at_max,t_max,'r*')
+ax7.set_xlabel("Throttle Setting at Max Flight Time")
+ax7.set_ylabel("Flight Time [min]")
 
 fig.canvas.mpl_connect('pick_event',on_pick)
 plt.show(block=True)
