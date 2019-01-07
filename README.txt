@@ -49,12 +49,69 @@ The purpose of this script is to give the user a good idea of the design space t
 -Battery voltage
 -Battery capacity
 -Total aircraft weight
+-Throttle setting at max flight time
 The unit which gives the highest flight time will be highlighted in red in each of these plots. The user can then select any other plotted point in these plots and the corresponding data points will be highlighted in the other plots. The user will also be presented with a full description of that unit's specifications (in the command line) and the thrust and speed curves for that unit (in a separate window).
 
-This script operates in two modes: required thrust and required thrust-to-weight ratio. For both, the user must specify the number of units to consider, the number of subprocesses to be used (this script does the bulk of its computation in parallel), the cruise speed, and the altitude. To analyze simply for a required thrust, this is the only other parameter the user must specify. To analyze for thrust-to-weight ratio, the user must also specify the required thrust-to-weight ratio and the empty weight of the airframe. Examples of both types of command are given below:
+The only argument is a .json file defining the search parameters, an example of which is
+given below (explanatory comments given within // //):
+----sampleSearch.json----
+{
+    "computation":{
+        "units":1000, //Number of propulsion units to find in the design space.//
+        "processes":8, //Maximum number of processes to be used in parallel computation.//
+        "outlierStdDevs":5 //Number of standard deviations of the half-normal distribution within which designs are considered feasible.//
+    },
+    "condition":{
+        "altitude":0, //Flight altitude.//
+        "airspeed":10 //Flight cruise speed.//
+    },
+    "goal":{ //One and only one of these parameters must be specified. Set for cruise condition.//
+        "thrust":0, //Thrust required from the propulsion unit.//
+        "thrustToWeightRatio":0.3 //Thrust to weight ratio required (requires emptyWeight to be defined.//
+    },
+    "aircraft":{
+        "emptyWeight":1, //Weight of the aircraft minus the propulsion system.//
+        "components":{ //These parameters are optional, but only one for each component may be specified.//
+            "propeller":{
+                "name":"",
+                "manufacturer":""
+            },
+            "motor":{
+                "name":"",
+                "manufacturer":""
+            },
+            "esc":{
+                "name":"",
+                "manufacturer":""
+            },
+            "battery":{
+                "name":"",
+                "manufacturer":""
+            }
+        }
+    }
+}
 
-$python plotDesignSpace.py units 1000 mp 8 speed 10 thrust 1 alt 2000
-$python plotDesignSpace.py units 10000 mp 8 speed 15 thrustToWeight 0.4 alt 1000 weight 2
+The component parameters in the .json file are all optional. Specifying a component name limits
+the search to propulsion units including that specific component. Specifying a component manufacturer
+limits the search to a single manufacturer for that component. Please note that some component
+manufacturers have very few components in our current database, and specifying this may limit the
+search more than desirable. Only one of these parameters may be specified for each component at most.
+
+Once the search is complete (i.e. the specified number of designs has been considered), the propulsion
+unit which has the longest flight time will be output to the terminal. A figure will also be displayed
+containing 6 plots which describe (in part) the design space. Each point on a plot represents a possible
+design; each design is reflected in each plot. The y axis of each plot is the flight time given by a
+design, and the x axis of each plot is a defining parameter of the design (currently: prop diameter, prop
+pitch, motor Kv constant, battery voltage, battery capacity, and total unit weight). The user may select
+any design in any one of the plots to see a plot of its thrust at various airspeeds and throttle settings.
+A corresponding plot of propeller speeds is also shown and all details of the design are printed to the
+terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
+patterns in the design space can be opserved.
+
+The developer is of the opinion that outliers should be ignored. Testing has shown that these arise from
+error in the component models and should not be trusted as feasible, high-performance designs. Realistic
+designs will be found closer to the main cluster of designs.
 
 PLEASE NOTE:
 Speed is specified in ft/s, thrust and weight in lbf, altitude in ft.

@@ -48,7 +48,7 @@
 # }
 #
 # The component parameters in the .json file are all optional. Specifying a component name limits
-# the search to propulsion units including that specific component. Sepcifying a component manufacturer
+# the search to propulsion units including that specific component. Specifying a component manufacturer
 # limits the search to a single manufacturer for that component. Please note that some component
 # manufacturers have very few components in our current database, and specifying this may limit the
 # search more than desirable. Only one of these parameters may be specified for each component at most.
@@ -244,9 +244,10 @@ print("Current draw:",bestUnit.I_motor,"A")
 plt.ion()
 fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(nrows=2,ncols=4)
 fig.suptitle("OPTIMUM Prop: "+str(bestUnit.prop.name)+"  Motor: "+str(bestUnit.motor.name)+"  Battery: "+str(bestUnit.batt.name)+"  ESC: "+str(bestUnit.esc.name))
+
 ax1.plot([units[i].prop.diameter for i in range(N_units)],t_flight,'b*',picker=3)
 ax1.plot(bestUnit.prop.diameter,t_max,'r*')
-ax1.set_xlabel("Prop Diameter [in]")
+ax1.set_xlabel("Prop Pitch [in]")
 ax1.set_ylabel("Flight Time [min]")
 
 ax2.plot([units[i].prop.pitch for i in range(N_units)],t_flight,'b*',picker=3)

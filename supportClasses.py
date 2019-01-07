@@ -267,8 +267,7 @@ class PropulsionUnit:
         self.batt = battery
         self.esc = esc
 
-        _,_,_,self.airDensity = coesa.table(altitude*0.3048) # Converts from ft to m
-        self.airDensity = self.airDensity*0.0019403203 # Converts kg/m^3 to slug/ft^3
+        self.airDensity = coesa.table(altitude*0.3048)[3]*0.0019403203 # Converts kg/m^3 to slug/ft^3
         
         #Initialize exterior parameters to be set later
         self.prop.v_inf = 0
@@ -288,17 +287,13 @@ class PropulsionUnit:
             self.prop.angVel = 0
             return 0 #Don't even bother
 
-        if v_cruise == 0 and self.CalcMotorTorque(throttle,0)<0: #Current supplied is not enough to overcome internal friction in the motor
-            self.prop.angVel = 0
-            return 0
-
         self.prop.v_inf = v_cruise
 
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
         #Uses a secant method
         err_max = 0.000001
         err_aprx = 1 + err_max #So that it executes at least once
-        w_0 = 300 #An initial guess of the prop's angular velocity
+        w_0 = 950 #An initial guess of the prop's angular velocity
         w_max = self.motor.Kv*self.batt.V0*throttle*(2*np.pi/60) # Theoretically the upper limit
         self.prop.angVel = w_0
         self.prop.CalcTorqueCoef()
@@ -324,10 +319,8 @@ class PropulsionUnit:
             f_0 = f_1
             w_1 = w_2
     
-        if False:#iterations >= 1000:
-            print(v_cruise)
-            print(throttle)
-            w = np.linspace(0,50000,10000)
+        if False: #iterations >= 1000:
+            w = np.linspace(0,30000,10000)
             T_motor = np.zeros(10000)
             T_prop = np.zeros(10000)
             for i,w_i in enumerate(w):
@@ -340,7 +333,6 @@ class PropulsionUnit:
             plt.title("Torques vs Angular Velocity")
             plt.legend(["Motor Torque","Prop Torque"])
             plt.show()
-
         
         self.prop.angVel = w_2
         self.prop.CalcThrustCoef()
