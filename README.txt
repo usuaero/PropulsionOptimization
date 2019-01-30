@@ -19,7 +19,6 @@ PREREQUISITES
 It is assumed that the user already has Python 3 running on their machine. The software makes use of the following Python packages:
 
 numpy
-sqlite3
 multiprocessing
 matplotlib
 scikit-aero
