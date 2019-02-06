@@ -247,7 +247,7 @@ fig.suptitle("OPTIMUM Prop: "+str(bestUnit.prop.name)+"  Motor: "+str(bestUnit.m
 
 ax1.plot([units[i].prop.diameter for i in range(N_units)],t_flight,'b*',picker=3)
 ax1.plot(bestUnit.prop.diameter,t_max,'r*')
-ax1.set_xlabel("Prop Pitch [in]")
+ax1.set_xlabel("Prop Diameter [in]")
 ax1.set_ylabel("Flight Time [min]")
 
 ax2.plot([units[i].prop.pitch for i in range(N_units)],t_flight,'b*',picker=3)
