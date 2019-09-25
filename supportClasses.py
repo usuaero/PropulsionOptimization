@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import polyFit as fit
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from skaero.atmosphere import coesa
+from std_atmos import *
 import sqlite3 as sql
 from random import randint
 
@@ -267,7 +267,7 @@ class PropulsionUnit:
         self.batt = battery
         self.esc = esc
 
-        self.airDensity = coesa.table(altitude*0.3048)[3]*0.0019403203 # Converts kg/m^3 to slug/ft^3
+        _,_,_,self.airDensity = statee(altitude) # Converts kg/m^3 to slug/ft^3
         
         #Initialize exterior parameters to be set later
         self.prop.v_inf = 0

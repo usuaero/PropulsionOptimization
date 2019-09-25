@@ -1,6 +1,6 @@
 {
     "computation":{
-        "units":1000,
+        "units":10000,
         "processes":8,
         "outlierStdDevs":10
     },
