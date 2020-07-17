@@ -4,7 +4,9 @@ Created by Cory Goates (undergraduate, Utah State University)
 Under supervision of Dr Doug Hunsaker (professor, Utah State University; director, USU AeroLab)
 As part of the Engineering Undergraduate Research Program (EURP)
 
-README (last revision: 10/31/18)
+README (last revision: 7/17/2020)
+
+THIS SOFTWARE IS NOW OBSOLETE. IT HAS BEEN SUPERCEDED BY PYPROP (https://www.github.com/usuaero/PyProp).
 
 --------------------------------------------------------------------
 INTRODUCTION
